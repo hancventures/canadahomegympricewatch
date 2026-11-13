@@ -75,6 +75,20 @@
   .card{border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);padding:14px;display:flex;flex-direction:column}
   .card .photo{aspect-ratio:1/1;width:100%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:var(--surface-alt);border-radius:8px;margin-bottom:10px}
   .card .photo img{width:100%;height:100%;object-fit:contain}
+  .photo-link{position:relative;border:0;padding:0;cursor:pointer;font:inherit;color:inherit}
+  .photo-link:focus-visible{outline:3px solid var(--navy);outline-offset:2px}
+  .photo-link:hover .view-chip{background:var(--navy-deep)}
+  .view-chip{position:absolute;right:10px;bottom:10px;background:var(--navy);color:#fff;font-size:.82rem;font-weight:700;line-height:1;padding:7px 12px;border-radius:999px;box-shadow:0 2px 6px rgba(10,32,56,.35);pointer-events:none;white-space:nowrap}
+  .view-chip-sm{right:6px;bottom:6px;font-size:.72rem;padding:5px 9px}
+  .name-link{background:none;border:0;padding:0;margin:0;font:inherit;color:inherit;text-align:left;cursor:pointer;min-height:0}
+  .name-link:hover{text-decoration:underline}
+  .name-link:focus-visible{outline:3px solid var(--navy);outline-offset:2px}
+  .calc-thumb-link{cursor:pointer;font:inherit}
+  .calc-thumb-link:focus-visible{outline:3px solid var(--navy);outline-offset:2px}
+  .cmp-photo{display:block;width:100%;max-width:190px;background:#fff;border-radius:8px;padding:6px;margin-bottom:8px}
+  .cmp-photo img{width:100%;height:110px;object-fit:contain}
+  .detail-photo-link{display:flex;align-items:center;justify-content:center;width:100%}
+  .detail-photo-link:focus-visible{outline:3px solid var(--navy);outline-offset:2px}
   .retailer{font-size:.75rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin:0}
   .card h3{font-size:1.05rem;margin:4px 0 8px;line-height:1.3}
   .shelf{font-size:1.7rem;font-weight:800;line-height:1.1;margin:0}
@@ -342,9 +356,9 @@ function cardHtml(p){
   var v = verdictOf(p), d = dropOf(p);
   var inTray = state.tray.indexOf(p.slug)>=0;
   var h = '<article class="card">';
-  h += '<div class="photo">'+photoImg(p)+'</div>';
+  h += '<button type="button" class="photo photo-link" data-open="'+esc(p.slug)+'" aria-label="View details for '+esc(p.name)+'">'+photoImg(p)+'<span class="view-chip" aria-hidden="true">View details →</span></button>';
   h += '<p class="retailer">'+esc(p.retailer)+' · Canada</p>';
-  h += '<h3>'+esc(p.name)+'</h3>';
+  h += '<h3><button type="button" class="name-link" data-open="'+esc(p.slug)+'">'+esc(p.name)+'</button></h3>';
   h += '<div class="cardprice"><div><p class="cp-tax price">'+cad(taxIn(p.price))+'</p><p class="cp-lab">Tax in · '+esc(prov.code)+'</p></div><div><p class="cp-shelf">'+cad(p.price)+'</p><p class="cp-lab">Shelf price, CAD</p></div></div>';
   if (p.regular) h += '<p class="reg">Regular <s>'+cad(p.regular)+'</s>'+(d? ' · <span class="drop">'+cad(d)+' under regular</span>':'')+'</p>';
   if (isGorillaTile(p)) h += '<p class="reg">Also sold as a 12 pack, and in nine colours.</p>';
@@ -489,8 +503,8 @@ function calcRowsHtml(area){
   rows.forEach(function(r){
     var p = r.p;
     h += '<li class="calc-row">';
-    if (p.photo) h += '<span class="calc-thumb"><img src="'+esc(p.photo)+'" alt="" loading="lazy" /></span>';
-    h += '<div class="calc-main"><div class="calc-head"><span><b>'+esc(p.name)+'</b> <span class="dim">· '+esc(p.retailer)+(p.thickLabel?' · '+esc(p.thickLabel):'')+'</span></span><span class="calc-total">'+cad(r.totalTax)+' tax in ('+esc(prov.name)+')</span></div>';
+    if (p.photo) h += '<button type="button" class="calc-thumb calc-thumb-link" data-open="'+esc(p.slug)+'" aria-label="View details for '+esc(p.name)+'"><img src="'+esc(p.photo)+'" alt="" loading="lazy" /></button>';
+    h += '<div class="calc-main"><div class="calc-head"><span><b><button type="button" class="name-link" data-open="'+esc(p.slug)+'">'+esc(p.name)+'</button></b> <span class="dim">· '+esc(p.retailer)+(p.thickLabel?' · '+esc(p.thickLabel):'')+'</span></span><span class="calc-total">'+cad(r.totalTax)+' tax in ('+esc(prov.name)+')</span></div>';
     var need = isGorillaTile(p) ? mixText(r.units)+' ('+r.units+' units) needed' : r.units+' unit'+(r.units>1?'s':'')+' needed';
     h += '<p style="margin:2px 0 0" class="dim">'+need+' · <span class="price">'+cad(r.shelfTotal)+'</span> shelf · <span class="price">'+cad(r.totalTax)+'</span> tax in · '+r.leftover.toFixed(2)+' sq ft coverage left over · <span class="price">'+cad(r.eff)+'</span> per sq ft tax in for this room (calculated) · Checked '+fmtDate(p.checked)+'</p>';
     h += '<p style="margin:2px 0 0" class="dim">Shipping: '+esc(p.ship||"Not stated")+'</p>';
@@ -532,7 +546,7 @@ function renderDetail(){
   var v = verdictOf(p), d = dropOf(p);
   var backLbl = state.detailFrom==="compare" ? "Back to Compare" : "Back to Shop";
   var h = '<button type="button" class="btn backbtn" data-backpill="1">\u2190 '+backLbl+'</button>';
-  h += '<div class="detail"><div class="photo">'+photoImg(p)+'</div><div>';
+  h += '<div class="detail"><div class="photo">'+(p.photo ? '<a class="detail-photo-link" href="'+esc(p.url)+'" target="_blank" rel="noreferrer" aria-label="View '+esc(p.name)+' at '+esc(p.retailer)+'">'+photoImg(p)+'</a>' : photoImg(p))+'</div><div>';
   h += '<p class="retailer">'+esc(p.retailer)+' · Canada · '+esc(catName(p.cat))+'</p>';
   h += '<h2 class="viewtitle">'+esc(p.name)+'</h2>';
   h += '<p class="shelf price" style="font-size:2.1rem">'+cad(p.price)+' <small>Shelf price, CAD</small></p>';
@@ -626,7 +640,7 @@ function renderCompare(){
     ps.forEach(function(p){ p.features.forEach(function(f){ if(!seen[f.label]){ seen[f.label]=f; feats.push(f);} }); });
   }
   h += '<div class="cmp-wrap"><table class="cmp"><thead><tr><th></th>';
-  ps.forEach(function(p){ h += '<th>'+esc(p.name)+'<br><span style="font-weight:400;font-size:.85rem">'+esc(p.retailer)+'</span></th>'; });
+  ps.forEach(function(p){ h += '<th>'+(p.photo ? '<button type="button" class="cmp-photo photo-link" data-open="'+esc(p.slug)+'" aria-label="View details for '+esc(p.name)+'">'+photoImg(p)+'<span class="view-chip view-chip-sm" aria-hidden="true">View details \u2192</span></button>' : '')+'<button type="button" class="name-link" data-open="'+esc(p.slug)+'">'+esc(p.name)+'</button><br><span style="font-weight:400;font-size:.85rem">'+esc(p.retailer)+'</span></th>'; });
   h += '</tr></thead><tbody>';
   rows.forEach(function(r){
     h += '<tr><th scope="row">'+esc(r.label)+'</th>';
@@ -653,7 +667,7 @@ function renderCompare(){
   var blocks = rows.map(function(r){return {label:r.label, get:r.get};}).concat(feats.map(function(f0){ return {label:f0.label, get:function(p){ var f=null; p.features.forEach(function(x){ if(x.label===f0.label) f=x; }); if(!f) return "Not stated"; if(f.kind==="checklist"){ return (f.status==="included"?"Included":f.status==="not_included"?"Not included":"Not stated on the retailer page")+(f.detail? " — "+esc(f.detail):""); } return (f.value?esc(f.value):"Not stated")+(f.detail?" — "+esc(f.detail):""); }}; }));
   blocks.forEach(function(b){
     h += '<div class="cmp-block"><h4>'+esc(b.label)+'</h4>';
-    ps.forEach(function(p){ h += '<div class="cmp-row"><div class="who">'+esc(p.name)+'</div><div>'+b.get(p)+'</div></div>'; });
+    ps.forEach(function(p){ h += '<div class="cmp-row"><div class="who"><button type="button" class="name-link" data-open="'+esc(p.slug)+'">'+esc(p.name)+'</button></div><div>'+b.get(p)+'</div></div>'; });
     h += '</div>';
   });
   h += '</div>';
