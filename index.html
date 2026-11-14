@@ -1,6 +1,15 @@
 <!doctype html>
 <html lang="en">
 <head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-WFWQCR9TCY"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-WFWQCR9TCY');
+</script>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="color-scheme" content="light" />
@@ -1721,7 +1730,8 @@ function renderPrivacy(){
   + '<p>Every alert email carries an unsubscribe link. Using it ends all of your alerts, product alerts and build alerts alike.</p>'
   + '<p>You can also ask for your address to be deleted entirely. Use the Report an error form on any product page, say that you want your email address deleted, and include the address. The address and its alerts are then removed.</p>'
   + '<p>Questions about your alerts or this site can be sent to <a href="mailto:hancventures@gmail.com">hancventures@gmail.com</a>.</p>'
-  + '<p>This site also counts page views, clicks out to retailer pages, and searches that found nothing, as totals only. Those counts carry no name, no email address, and nothing that identifies a visitor. Your build, your province choice, and the products you recently viewed are remembered in your own browser, on your device, and are not sent anywhere.</p></div>';
+  + '<p>This site also counts page views, clicks out to retailer pages, and searches that found nothing, as totals only. Those counts carry no name, no email address, and nothing that identifies a visitor. Your build, your province choice, and the products you recently viewed are remembered in your own browser, on your device, and are not sent anywhere.</p>'
+  + '<p>This site uses Google Analytics to count visits and clicks on retailer links in aggregate, and it collects no names.</p></div>';
 }
 function renderTerms(){
   app.innerHTML = '<div class="panel"><h2>Terms</h2>'
