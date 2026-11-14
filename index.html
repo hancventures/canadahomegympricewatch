@@ -19,6 +19,8 @@
     --amber:#8A5A00; --amber-soft:#FBF0D3;
     --red-soft:#FDE7EA;
     --radius:10px;
+    /* Aliases used by the compare table and filter panel rules */
+    --panel:var(--surface); --line:var(--border); --ink:var(--text); --ok:var(--green);
   }
   *{box-sizing:border-box}
   html{scroll-behavior:smooth}
@@ -282,7 +284,15 @@ table.cmp2 th,table.cmp2 td{border-bottom:1px solid var(--line);padding:.45rem .
 table.cmp2 th:first-child,table.cmp2 td:first-child{position:sticky;left:0;background:var(--panel);font-weight:800;min-width:9rem;z-index:1}
 table.cmp2 thead th{position:sticky;top:0;background:var(--panel);z-index:2;vertical-align:top}
 table.cmp2 thead th:first-child{z-index:3}
-.cmp-thumb{width:5.5rem;height:4.5rem;object-fit:contain;background:#fff;border-radius:8px;padding:.25rem;margin-bottom:.3rem}
+.cmp-thumb{display:block;width:5.5rem;height:4.5rem;background:#fff;border-radius:8px;padding:.25rem;margin-bottom:.3rem;overflow:hidden}
+.cmp-thumb img{width:100%;height:100%;object-fit:contain}
+.cmp-name{display:block}
+.cmp-ret{display:block}
+.cmp-headprice{display:block}
+.cmp-headlab{display:block;font-size:.8rem;color:var(--dim);font-weight:700}
+.cmp-labnote{display:block;font-size:.78rem;color:var(--dim);font-weight:600}
+.cmp-verdict{display:block;font-weight:800;color:var(--ok)}
+.cmp-drop{display:block}
 .cmp-headprice{font-size:1.5rem;font-weight:800;color:var(--red)}
 .cmp-taxin{font-size:1.02rem;font-weight:800;color:var(--red)}
 .cmp-shelf{font-size:.85rem;color:var(--dim);font-weight:600}
@@ -418,7 +428,7 @@ var RETAILERS = retailersList();
 var state = { view:"shop", cat:"all", query:"", sort:"default", detail:null, detailFrom:"shop", retailer:null, guide:null, tray:[], roomSqft:200,
   light:{maxPrice:"",inStockOnly:false,maxHeight:"",minThickness:"",delivery:""}, lightOpen:false,
   tf:{maxHeight:"",maxWidth:"",maxDepth:"",maxPrice:"",minResistance:"",mustHave:[],inStockOnly:false,delivery:""}, tfOpen:false,
-  cmpSort:"default", cmpHow:false, genHow:false, filtersOpen:false };
+  cmpSort:"default", cmpHow:false, genHow:false, filtersOpen:false, fullCmp:false };
 var prov = PROVINCES[6]; // Ontario default
 
 function bySlug(s){ for (var i=0;i<PRODUCTS.length;i++) if (PRODUCTS[i].slug===s) return PRODUCTS[i]; return null; }
@@ -1607,19 +1617,23 @@ function renderCompare(){
   if (state.cmpPageHow) h += '<p class="dim" style="margin-top:10px">Up to four products from the same category, side by side: money (tax in total in your province, shelf price, regular price and any drop, delivery, and the price history), stock, and the recorded specs and features.</p>';
   h += '</div>';
   var trayProducts = state.tray.map(bySlug).filter(Boolean);
-  var trayCat = trayProducts.length ? trayProducts[0].pub : null;
   if (!trayProducts.length){
     var trainersByTax = PRODUCTS.filter(function(p){ return p.pub==="trainers"; }).slice().sort(function(a,b){ return taxIn(a.price)-taxIn(b.price); }).slice(0,2);
     h += '<section aria-label="Example comparison"><div class="panel" style="margin-top:16px"><span class="wbadge best">Example comparison</span><p class="dim" style="margin-top:8px">You have not chosen anything to compare yet, so here are the two all in one trainers with the lowest tax in totals in '+esc(prov.name)+'. This example clears the moment you add your own products with the Compare button on any product card.</p></div>';
     h += '<div style="margin-top:12px">'+genericCompareHtml(trainersByTax, false)+'</div></section>';
   }
-  if (trayProducts.length && trayCat!=="trainers"){
-    h += '<section aria-label="Your compare tray" style="margin-top:16px"><h3 class="subhead">Your compare tray</h3>'+genericCompareHtml(trayProducts, true)+'</section>';
+  if (trayProducts.length){
+    h += '<section aria-label="Your compare tray" style="margin-top:16px"><h3 class="subhead">Your compare tray</h3><p class="dim" style="margin-top:6px">Only the products you picked, side by side.</p>'+genericCompareHtml(trayProducts, true)+'</section>';
+    if (state.fullCmp){
+      h += trainerCompareHtml();
+    } else {
+      var trainerCount = PRODUCTS.filter(function(p){ return p.pub==="trainers"; }).length;
+      h += '<div class="panel" style="margin-top:16px"><h3>Compare every trainer instead</h3><p class="dim" style="margin-top:6px">The full feature comparison puts all '+trainerCount+' tracked trainers on the same fields, with filters for height, footprint, price and resistance.</p><p style="margin-top:10px"><button type="button" class="btn navy" data-fullcmp="1">Compare all '+trainerCount+' trainers</button></p></div>';
+    }
+  } else {
+    state.fullCmp = false;
+    h += trainerCompareHtml();
   }
-  if (trayProducts.length && trayCat==="trainers"){
-    h += '<p class="dim" style="margin-top:12px">The trainers in your tray are in the full feature comparison below.</p>';
-  }
-  h += trainerCompareHtml();
   app.innerHTML = h;
   var sel = document.getElementById("cmpSortSel");
   if (sel) sel.addEventListener("change", function(e){ state.cmpSort = e.target.value; render(); });
@@ -1793,9 +1807,10 @@ function go(view){
 }
 
 document.addEventListener("click", function(e){
-  var t = e.target.closest("[data-nav],[data-open],[data-tray],[data-cat],[data-guide],[data-backpill],[data-retailer],[data-clearretailer],[data-clearsearch],[data-subcat],[data-fchip],[data-fdelivery],[data-fstock],[data-fclear],[data-filters],[data-tfdelivery],[data-tfstock],[data-musthave],[data-cmpHow],[data-genHow],[data-cmpPageHow]");
+  var t = e.target.closest("[data-nav],[data-open],[data-tray],[data-cat],[data-guide],[data-backpill],[data-retailer],[data-clearretailer],[data-clearsearch],[data-subcat],[data-fchip],[data-fdelivery],[data-fstock],[data-fclear],[data-filters],[data-tfdelivery],[data-tfstock],[data-musthave],[data-cmpHow],[data-genHow],[data-cmpPageHow],[data-fullcmp]");
   if (!t) return;
-  if (t.hasAttribute("data-backpill")){ doBack(); }
+  if (t.hasAttribute("data-fullcmp")){ state.fullCmp = true; render(); }
+  else if (t.hasAttribute("data-backpill")){ doBack(); }
   else if (t.hasAttribute("data-retailer")){ state.retailer = t.getAttribute("data-retailer"); state.cat = "all"; state.query = ""; var hqR = document.getElementById("hq"); if (hqR) hqR.value = ""; state.view = "shop"; state.detail = null; state.guide = null; render(); window.scrollTo(0,0); }
   else if (t.hasAttribute("data-clearretailer")){ state.retailer = null; render(); }
   else if (t.hasAttribute("data-clearsearch")){ state.query = ""; var hqC = document.getElementById("hq"); if (hqC) hqC.value = ""; render(); window.scrollTo(0,0); }
@@ -1810,6 +1825,7 @@ document.addEventListener("click", function(e){
       if (state.tray.length>=4) state.tray.shift();
       state.tray.push(s);
     }
+    state.fullCmp = false;
     render();
   }
   else if (t.hasAttribute("data-cat")){
