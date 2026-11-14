@@ -204,9 +204,17 @@
     .cmp-row{padding:8px 0;border-top:1px solid var(--border)}
     .cmp-row .who{font-weight:700;font-size:.85rem;color:var(--dim)}
   }
-  #tray{position:sticky;bottom:0;background:var(--navy);color:#fff;border-radius:10px;padding:10px 14px;margin-top:16px;display:none;align-items:center;gap:10px;flex-wrap:wrap}
-  #tray.show{display:flex}
-  #tray .btn{border-color:#fff}
+  #tray{position:fixed;left:0;right:0;bottom:0;z-index:60;background:var(--navy);color:#fff;display:none;box-shadow:0 -2px 14px rgba(10,32,56,.4);padding:10px 16px calc(10px + env(safe-area-inset-bottom))}
+  #tray.show{display:block}
+  #tray .tray-in{max-width:1180px;margin:0 auto;display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap}
+  #tray .tray-count{font-weight:700;white-space:nowrap}
+  #tray .tray-names{color:#C9D6E4;font-size:.9rem;min-width:0;flex:1 1 140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #tray .btn{border-color:#fff;flex:0 0 auto}
+  #tray .btn.primary{border-color:var(--red)}
+  #tray .tray-clear{background:transparent;color:#fff;border-color:transparent;text-decoration:underline;padding:8px 6px}
+  body.tray-on{padding-bottom:84px}
+  body.tray-on #toTop{bottom:calc(100px + env(safe-area-inset-bottom))}
+  @media(max-width:700px){body.tray-on{padding-bottom:124px}body.tray-on #toTop{bottom:calc(140px + env(safe-area-inset-bottom))}}
 
   footer.site{background:var(--navy);color:#fff;margin-top:24px}
   .footer-in{max-width:1180px;margin:0 auto;padding:22px 16px;display:flex;gap:14px;flex-wrap:wrap;align-items:center}
@@ -1711,15 +1719,18 @@ function renderTerms(){
 }
 
 function renderTray(){
-  if (state.tray.length){
+  var navBtn = document.querySelector('header nav.main button[data-nav="compare"]');
+  if (navBtn) navBtn.textContent = state.tray.length ? "Compare ("+state.tray.length+")" : "Compare";
+  if (state.tray.length && state.view!=="compare"){
     trayEl.className = "show";
-    trayEl.innerHTML = '<span><b>'+state.tray.length+'</b> in compare tray</span>'
-      + state.tray.map(function(s){ var p=bySlug(s); return '<span>'+esc(p?p.name:s)+'</span>'; }).join('<span>\u00b7</span>')
-      + '<button type="button" class="btn" id="trayGo">Open compare</button>'
-      + '<button type="button" class="btn" id="trayClear">Clear</button>';
+    document.body.classList.add("tray-on");
+    trayEl.innerHTML = '<div class="tray-in"><span class="tray-count"><b>'+state.tray.length+'</b> in compare tray</span>'
+      + '<span class="tray-names">'+state.tray.map(function(s){ var p=bySlug(s); return esc(p?p.name:s); }).join(' \u00b7 ')+'</span>'
+      + '<button type="button" class="btn primary" id="trayGo">Compare now</button>'
+      + '<button type="button" class="btn tray-clear" id="trayClear">Clear</button></div>';
     document.getElementById("trayGo").addEventListener("click", function(){ go("compare"); });
     document.getElementById("trayClear").addEventListener("click", function(){ state.tray=[]; render(); });
-  } else { trayEl.className=""; trayEl.innerHTML=""; }
+  } else { trayEl.className=""; trayEl.innerHTML=""; document.body.classList.remove("tray-on"); }
 }
 
 function renderProdbar(){
