@@ -1,0 +1,32 @@
+# Canada Home Gym Price Watch
+
+Canada's only home gym price watcher. The site checks prices every day at Canadian home gym retailers and records each product's price, features, sizes, and delivery terms from the retailer's own page. Every total is shown tax in for the visitor's province, and every price drop is measured against the product's own recorded price history.
+
+Site: https://canadahomegym.ca
+Contact: hancventures@gmail.com
+
+## What is tracked
+
+295 products at Canadian retailers, in six categories:
+
+- Trainers: 50
+- Racks and stands: 39
+- Strength staples (benches, barbells, weight plates): 80
+- Dumbbells and kettlebells: 35
+- Cardio (treadmills, rowers, exercise bikes, ellipticals, air bikes, ski ergs, stair climbers): 79
+- Flooring: 12
+
+## How the prices work
+
+- Prices are checked daily and every check is dated.
+- The headline figure is the full tax in total for the selected province; the shelf price is shown beside it.
+- Stock is shown as what the retailer's page stated at the last check, with the check date beside it.
+- Delivery terms are recorded as each retailer states them, and a delivered total is shown only where the recorded terms make it exact.
+- Rankings and verdicts are computed from the recorded prices only. They are never sold and never influenced by commission.
+
+## Guides on the site
+
+- Start here
+- How to buy an all in one trainer
+- Gym flooring
+- How this works, including what the site does not track and why
