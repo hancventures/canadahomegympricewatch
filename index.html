@@ -325,6 +325,19 @@ table.cmp2 tr.cmp-note td{background:var(--panel)}
 .wbadge.best{color:#fff;background:var(--red)}
 .glink{background:none;border:0;padding:0;color:var(--navy);font:inherit;font-weight:700;text-decoration:underline;cursor:pointer}
 @media (prefers-color-scheme: dark){.glink{color:#93c5fd}}
+.drops-list{display:flex;flex-direction:column;gap:12px;margin-top:14px}
+.drop-row{display:flex;gap:14px;align-items:flex-start;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);padding:14px}
+.drop-photo{flex:0 0 104px}
+.drop-photo .photo{width:104px;height:104px;background:var(--surface-alt);border-radius:8px;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:6px}
+.drop-photo .photo img{width:100%;height:100%;object-fit:contain}
+.drop-photo .view-chip{display:none}
+.drop-main{flex:1;min-width:0}
+.drop-name{font-size:1.05rem;margin:0}
+.drop-ret{font-weight:700;color:var(--dim);margin:2px 0 8px}
+.drop-line{margin:3px 0}
+.drop-lab{display:inline-block;min-width:2.6rem;font-weight:700;color:var(--dim);font-size:.85rem}
+.drop-amt{font-size:1.15rem;font-weight:800;color:var(--red);margin:8px 0 3px}
+@media (max-width:480px){.drop-photo{flex-basis:84px}.drop-photo .photo{width:84px;height:84px}}
 </style>
 </head>
 <body>
@@ -340,6 +353,7 @@ table.cmp2 tr.cmp-note td{background:var(--panel)}
     <nav class="main" aria-label="Main">
       <button type="button" data-nav="shop">Shop</button>
       <button type="button" data-nav="compare">Compare</button>
+      <button type="button" data-nav="drops">Drops</button>
       <button type="button" data-nav="guides">Guides</button>
       <button type="button" data-nav="how">How this works</button>
     </nav>
@@ -999,6 +1013,66 @@ function renderHome(){
     h += '<button type="button" class="cat-tile" data-cat="'+c.id+'" aria-label="Shop '+esc(c.name)+'">'+(rep&&rep.photo?'<img src="'+esc(rep.photo)+'" alt="" loading="lazy" />':'')+'<span class="ct"><b>'+esc(c.name)+'</b><span class="ccount">'+items.length+' products</span><span>'+esc(c.blurb)+'</span>'+(latest?'<span class="clast">Last checked '+fmtDate(latest)+'</span>':'')+'</span></button>';
   });
   h += '</div></section>';
+  h += '<section aria-label="Biggest drops this week" style="margin-top:28px"><h2 class="viewtitle">Biggest drops this week</h2>' + dropsListHtml() + '</section>';
+  app.innerHTML = h;
+}
+
+function latestCheckDate(){
+  var latest = "";
+  PRODUCTS.forEach(function(p){ (p.checks||[]).forEach(function(c){ if (c.checked_date>latest) latest = c.checked_date; }); });
+  return latest;
+}
+function computeDrops(){
+  var latest = latestCheckDate(); if (!latest) return [];
+  var lp = latest.split("-");
+  var cutIso = new Date(Date.UTC(parseInt(lp[0],10), parseInt(lp[1],10)-1, parseInt(lp[2],10)) - 7*86400000).toISOString().slice(0,10);
+  var out = [];
+  PRODUCTS.forEach(function(p){
+    var ch = (p.checks||[]).slice().sort(function(a,b){ return a.checked_date<b.checked_date ? -1 : (a.checked_date>b.checked_date ? 1 : 0); });
+    var best = null;
+    for (var i=1;i<ch.length;i++){
+      var prev = ch[i-1], cur = ch[i];
+      if (cur.checked_date>cutIso && cur.checked_date<=latest && cur.price_cents<prev.price_cents){
+        var drop = prev.price_cents - cur.price_cents;
+        var pct = drop/prev.price_cents*100;
+        if (!best || pct>best.pct || (pct===best.pct && drop>best.dropCents)) best = {p:p, prevCents:prev.price_cents, prevDate:prev.checked_date, nowCents:cur.price_cents, nowDate:cur.checked_date, dropCents:drop, pct:pct};
+      }
+    }
+    if (best) out.push(best);
+  });
+  out.sort(function(a,b){ return (b.pct-a.pct) || (b.dropCents-a.dropCents); });
+  return out.slice(0,25);
+}
+function dropsCountLine(n){
+  if (!n) return "No price drops were recorded in the last 7 days.";
+  var w = numberWord(n); w = w.charAt(0).toUpperCase() + w.slice(1);
+  return w + (n===1 ? " price drop was" : " price drops were") + " recorded in the last 7 days.";
+}
+function dropRowHtml(d){
+  var p = d.p;
+  var h = '<article class="drop-row">';
+  h += '<div class="drop-photo">'+photoFrame(p, true)+'</div>';
+  h += '<div class="drop-main">';
+  h += '<h3 class="drop-name"><button type="button" class="name-link" data-open="'+esc(p.slug)+'">'+esc(p.name)+'</button></h3>';
+  h += '<p class="drop-ret">'+esc(p.retailer)+'</p>';
+  h += '<p class="drop-line"><span class="drop-lab">Was</span> <b>'+cad(d.prevCents)+'</b> <span class="dim">recorded '+fmtDate(d.prevDate)+'</span></p>';
+  h += '<p class="drop-line"><span class="drop-lab">Now</span> <b class="price">'+cad(d.nowCents)+'</b> <span class="dim">shelf price, recorded '+fmtDate(d.nowDate)+'</span></p>';
+  h += '<p class="drop-amt">Down '+cad(d.dropCents)+' \u00b7 '+d.pct.toFixed(2)+'%</p>';
+  h += '<p class="drop-line"><b class="price">'+cad(taxIn(d.nowCents))+'</b> <span class="dim">'+esc(taxLabel())+'</span></p>';
+  h += '</div></article>';
+  return h;
+}
+function dropsListHtml(){
+  var drops = computeDrops();
+  var h = '<p class="dim" style="margin-top:6px">'+dropsCountLine(drops.length)+'</p>';
+  if (drops.length) h += '<div class="drops-list">'+drops.map(dropRowHtml).join("")+'</div>';
+  return h;
+}
+function renderDrops(){
+  var h = '<div class="panel"><h2>Biggest drops this week</h2>';
+  h += '<p class="dim" style="margin-top:6px">Price drops recorded by our checks in the last 7 days, ranked by percentage drop against the previous recorded price. Every price is dated, and every total is tax in for the province you selected.</p>';
+  h += dropsListHtml();
+  h += '</div>';
   app.innerHTML = h;
 }
 function renderRetailer(){
@@ -1785,7 +1859,7 @@ function renderProdbar(){
 function backTarget(){
   if (state.view==="shop" && state.cat==="all" && !state.query && !state.retailer) return null;
   if (state.view==="shop") return {label:"Back to Shop", view:"shop", home:true};
-  if (state.view==="detail") return state.detailFrom==="compare" ? {label:"Back to Compare", view:"compare"} : {label:"Back to Shop", view:"shop"};
+  if (state.view==="detail") return state.detailFrom==="compare" ? {label:"Back to Compare", view:"compare"} : (state.detailFrom==="drops" ? {label:"Back to Drops", view:"drops"} : {label:"Back to Shop", view:"shop"});
   if (state.view==="guides" && state.guide) return {label:"Back to Guides", view:"guides"};
   if (state.view==="coverage") return {label:"Back to How this works", view:"how"};
   return {label:"Back to Shop", view:"shop"};
@@ -1813,6 +1887,7 @@ function render(){
   if (state.view==="shop") renderShop();
   else if (state.view==="detail") renderDetail();
   else if (state.view==="compare") renderCompare();
+  else if (state.view==="drops") renderDrops();
   else if (state.view==="guides") renderGuides();
   else if (state.view==="how") renderHow();
   else if (state.view==="coverage") renderCoverage();
@@ -1837,7 +1912,7 @@ document.addEventListener("click", function(e){
   else if (t.hasAttribute("data-clearretailer")){ state.retailer = null; render(); }
   else if (t.hasAttribute("data-clearsearch")){ state.query = ""; var hqC = document.getElementById("hq"); if (hqC) hqC.value = ""; render(); window.scrollTo(0,0); }
   else if (t.hasAttribute("data-nav")){ go(t.getAttribute("data-nav")); }
-  else if (t.hasAttribute("data-open")){ state.detailFrom = state.view==="compare" ? "compare" : "shop"; state.detail = t.getAttribute("data-open"); state.view="detail"; render(); window.scrollTo(0,0); }
+  else if (t.hasAttribute("data-open")){ state.detailFrom = state.view==="compare" ? "compare" : (state.view==="drops" ? "drops" : "shop"); state.detail = t.getAttribute("data-open"); state.view="detail"; render(); window.scrollTo(0,0); }
   else if (t.hasAttribute("data-tray")){
     var s = t.getAttribute("data-tray"); var i = state.tray.indexOf(s);
     if (i>=0){ state.tray.splice(i,1); state.trayNote=""; }
