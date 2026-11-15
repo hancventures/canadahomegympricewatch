@@ -1937,22 +1937,72 @@ function render(){
   if (typeof updateToTop==="function") updateToTop();
 }
 function go(view){
+  var wasDetail = state.view==="detail";
   state.view = view;
   if (view!=="guides") state.guide = null;
+  if (view!=="detail") state.detail = null;
   render();
+  if (wasDetail && view!=="detail") syncProductHash(true); else syncProductHash(false);
   window.scrollTo(0,0);
 }
+
+/* ---- Product deep links: #product=SLUG ---- */
+function productSlugFromHash(){
+  var h = window.location.hash || "";
+  var m = /^#product=(.+)$/.exec(h);
+  if (!m) return null;
+  try { return decodeURIComponent(m[1]); } catch(e){ return m[1]; }
+}
+function desiredProductHash(){
+  return (state.view==="detail" && state.detail && bySlug(state.detail)) ? "#product=" + encodeURIComponent(state.detail) : "";
+}
+function syncProductHash(push){
+  var want = desiredProductHash();
+  var cur = window.location.hash || "";
+  if (want===cur) return;
+  if (!want && (cur==="" || cur==="#")) return;
+  var url = want ? want : (window.location.pathname + window.location.search);
+  try {
+    if (push) window.history.pushState(null, "", url);
+    else window.history.replaceState(null, "", url);
+  } catch(e){}
+}
+function applyHashToState(){
+  var slug = productSlugFromHash();
+  if (slug && bySlug(slug)){
+    if (state.view==="detail" && state.detail===slug) return true;
+    if (state.view==="compare" || state.view==="drops") state.detailFrom = state.view;
+    else if (state.view==="shop") state.detailFrom = "shop";
+    state.detail = slug;
+    state.view = "detail";
+    render();
+    window.scrollTo(0,0);
+    return true;
+  }
+  if (slug){
+    try { window.history.replaceState(null, "", window.location.pathname + window.location.search); } catch(e){}
+  }
+  if (state.view==="detail"){
+    state.view = state.detailFrom==="compare" ? "compare" : (state.detailFrom==="drops" ? "drops" : "shop");
+    state.detail = null;
+    render();
+    window.scrollTo(0,0);
+  }
+  return false;
+}
+window.addEventListener("popstate", function(){ applyHashToState(); });
+window.addEventListener("hashchange", function(){ applyHashToState(); });
 
 document.addEventListener("click", function(e){
   var t = e.target.closest("[data-nav],[data-open],[data-tray],[data-cat],[data-guide],[data-backpill],[data-retailer],[data-clearretailer],[data-clearsearch],[data-subcat],[data-fchip],[data-fdelivery],[data-fstock],[data-fclear],[data-filters],[data-tfdelivery],[data-tfstock],[data-musthave],[data-cmpHow],[data-genHow],[data-cmpPageHow],[data-fullcmp]");
   if (!t) return;
   if (t.hasAttribute("data-fullcmp")){ state.fullCmp = true; render(); }
   else if (t.hasAttribute("data-backpill")){ doBack(); }
-  else if (t.hasAttribute("data-retailer")){ state.retailer = t.getAttribute("data-retailer"); state.cat = "all"; state.query = ""; var hqR = document.getElementById("hq"); if (hqR) hqR.value = ""; state.view = "shop"; state.detail = null; state.guide = null; render(); window.scrollTo(0,0); }
+  else if (t.hasAttribute("data-retailer")){ state.retailer = t.getAttribute("data-retailer"); state.cat = "all"; state.query = ""; var hqR = document.getElementById("hq"); if (hqR) hqR.value = ""; state.view = "shop"; state.detail = null; state.guide = null; syncProductHash(true); render(); window.scrollTo(0,0); }
   else if (t.hasAttribute("data-clearretailer")){ state.retailer = null; render(); }
   else if (t.hasAttribute("data-clearsearch")){ state.query = ""; var hqC = document.getElementById("hq"); if (hqC) hqC.value = ""; render(); window.scrollTo(0,0); }
   else if (t.hasAttribute("data-nav")){ go(t.getAttribute("data-nav")); }
-  else if (t.hasAttribute("data-open")){ state.detailFrom = state.view==="compare" ? "compare" : (state.view==="drops" ? "drops" : "shop"); state.detail = t.getAttribute("data-open"); state.view="detail"; render(); window.scrollTo(0,0); }
+  else if (t.hasAttribute("data-open")){ state.detailFrom = state.view==="compare" ? "compare" : (state.view==="drops" ? "drops" : "shop"); state.detail = t.getAttribute("data-open"); state.view="detail"; syncProductHash(true); render(); window.scrollTo(0,0); }
   else if (t.hasAttribute("data-tray")){
     var s = t.getAttribute("data-tray"); var i = state.tray.indexOf(s);
     if (i>=0){ state.tray.splice(i,1); state.trayNote=""; }
@@ -1976,9 +2026,10 @@ document.addEventListener("click", function(e){
     state.tf = {maxHeight:"",maxWidth:"",maxDepth:"",maxPrice:"",minResistance:"",mustHave:[],inStockOnly:false,delivery:""};
     state.filtersOpen = false;
     if (state.view!=="shop"){ state.view="shop"; state.detail=null; }
+    syncProductHash(true);
     render(); window.scrollTo(0,0);
   }
-  else if (t.hasAttribute("data-guide")){ state.guide = t.getAttribute("data-guide"); if (state.view!=="guides") state.view="guides"; render(); window.scrollTo(0,0); }
+  else if (t.hasAttribute("data-guide")){ state.guide = t.getAttribute("data-guide"); if (state.view!=="guides") state.view="guides"; state.detail = null; syncProductHash(true); render(); window.scrollTo(0,0); }
   else if (t.hasAttribute("data-subcat")){
     var el = document.getElementById(t.getAttribute("data-subcat"));
     if (el) el.scrollIntoView({behavior:"smooth", block:"start"});
@@ -2026,7 +2077,7 @@ var hq = document.getElementById("hq");
 hq.addEventListener("input", function(){
   state.query = hq.value;
   state.retailer = null;
-  if (state.view!=="shop"){ state.view="shop"; state.detail=null; state.guide=null; }
+  if (state.view!=="shop"){ state.view="shop"; state.detail=null; state.guide=null; syncProductHash(true); }
   render();
 });
 
@@ -2035,7 +2086,7 @@ function updateToTop(){ toTop.className = (window.scrollY>400 && state.view!=="c
 window.addEventListener("scroll", updateToTop);
 toTop.addEventListener("click", function(){ window.scrollTo({top:0, behavior:"smooth"}); });
 
-render();
+if (!applyHashToState()) render();
 
 </script>
 </body>
