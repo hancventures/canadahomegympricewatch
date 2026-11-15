@@ -1500,6 +1500,7 @@ function renderDetail(){
   h += '<tr><th>Recorded delivery terms</th><td>'+esc(p.ship||"Not stated")+'</td></tr>';
   h += '<tr><th>Last checked</th><td>'+fmtDate(p.checked)+'</td></tr>';
   h += '</tbody></table>';
+  h += '<p>The retailer\'s price at checkout is the price you pay.</p>';
   h += '<h3 style="margin-top:22px">Verdict</h3><p>'+esc(p.verdictText)+'</p>';
   var inTray = state.tray.indexOf(p.slug)>=0;
   h += '<p style="margin-top:14px"><button type="button" class="btn" data-tray="'+esc(p.slug)+'" aria-pressed="'+inTray+'">'+(inTray?"In compare tray \u2713":"Compare")+'</button></p>';
@@ -1847,7 +1848,7 @@ function renderHow(){
   app.innerHTML =
   '<div class="panel"><h2>How this works</h2><p style="color:var(--red);font-weight:700">The Canadian standard for home gym prices.</p><p>This page sets out how this site gets its numbers: how prices are checked, how tax is worked out, where the specifications come from, how verdicts and rankings are decided, and how corrections are handled.</p></div>'
   + '<div class="panel"><h3>How we check</h3><p>This site keeps a fixed watch list of named products at Canadian retailers. Prices are read from the retailer\'s own product page and recorded with the date of the check.</p><p>Price record started November 2026</p><p>Prices are read daily: a short pulse reads each product\'s headline price and stock state every day, and records a dated check the day a price moves. The full record, features, specifications, delivery terms and variants in full, is checked every Thursday. Every price on the site carries the date it was last checked, and the price history labels each check as a daily pulse or a full check.</p><p>Stock is what the retailer\'s own page stated at our last check, and the check date is shown with it. Stock can change between checks. Where a retailer does not state stock, the record says Not stated.</p></div>'
-  + '<div class="panel"><h3>Prices and tax</h3><p>Every product shows its shelf price and a tax in total computed for your own province, chosen with the province selector at the top of the page. The taxes that apply are named beside every total: HST in Ontario and the Atlantic provinces, GST alone in Alberta and the three territories, GST and PST in British Columbia and Saskatchewan, GST and RST in Manitoba, and GST and QST in Quebec.</p><p>Tax on shipped goods follows the province the goods are delivered to, so the selector asks where the gym is going, and every tax in total on the site follows that one choice. The shelf price itself never changes by province, so the price history, the lowest seen figures and every recorded drop are the same for every Canadian.</p><p>The shelf price is never the whole price anywhere in Canada, which is why the tax in total is printed beside it on every product, in the compare view, in the price history, and in the flooring room cost calculator.</p></div>'
+  + '<div class="panel"><h3>Prices and tax</h3><p>Every product shows its shelf price and a tax in total computed for your own province, chosen with the province selector at the top of the page. The taxes that apply are named beside every total: HST in Ontario and the Atlantic provinces, GST alone in Alberta and the three territories, GST and PST in British Columbia and Saskatchewan, GST and RST in Manitoba, and GST and QST in Quebec.</p><p>Tax on shipped goods follows the province the goods are delivered to, so the selector asks where the gym is going, and every tax in total on the site follows that one choice. The shelf price itself never changes by province, so the price history, the lowest seen figures and every recorded drop are the same for every Canadian.</p><p>The shelf price is never the whole price anywhere in Canada, which is why the tax in total is printed beside it on every product, in the compare view, in the price history, and in the flooring room cost calculator.</p><p>The retailer\'s price at checkout is the price you pay.</p></div>'
   + '<div class="panel"><h3>Where the specs come from</h3><p>Every specification carries a small source label naming where it was read: the retailer page, the maker\'s support pages, its manual or specification sheet, its warranty document, or confirmed by the maker in writing.</p><p>Where two sources disagree, both wordings are printed and the disagreement is named. Where a maker does not publish a figure, the field reads Not stated.</p><p>Nothing is guessed, estimated from photos, or copied from another model.</p></div>'
   + '<div class="panel"><h3>Verdicts and rankings</h3><p>A verdict compares a product\'s current price with its own recorded price history on this site and its stated regular price. Rankings run on recorded numbers only.</p><p>Verdicts, rankings and ordering are never for sale, and commission never changes them.</p></div>'
   + '<div class="panel"><h3>Starter builds</h3><p>The strength starter has four slots: rack, bench, barbell and plates. Each slot takes the lowest tax in option whose record states it is in stock and deliverable: delivery terms stated on the record, and not pickup only.</p><p>Plates are ranked as sets by price per pound. A single plate is never ranked against a set.</p><p>Pickup only products never appear in the strength starter. They appear only in its local pickup variant, which uses the lowest tax in pickup only pick tracked for a slot where one is tracked, and keeps the strength starter\u2019s deliverable pick for any slot with none.</p><p>Flooring is an optional extra line on a starter. It sits outside the total until you add it, and only then is it counted.</p><p>Every line carries its delivery or pickup state. A starter total is printed as a delivered total only when every line\u2019s delivery is a stated figure; otherwise it is printed as the tax in total, with delivery to confirm.</p><p>The swap control on a starter line changes that slot\u2019s pick among the tracked alternatives, with tax in prices beside each option. Applying a starter loads it as your build, with the normal totals.</p></div>'
@@ -1876,8 +1877,10 @@ function renderPrivacy(){
   + '<p>That information is used for one thing: sending the price alerts you asked for. Prices are read daily and the full record is checked every Thursday, and alerts are worked out from those checks. Alerts open when the full site launches after Black Friday. Until then, if you want a price alert or a back in stock alert on a product, email hancventures@gmail.com with the product name and we will set it by hand.</p>'
   + '<p>Your email address is never sold, and it is not shared for marketing.</p>'
   + '<p>Every alert email carries an unsubscribe link. Using it ends all of your alerts, product alerts and build alerts alike.</p>'
+  + '<p>Alert email is sent through Resend, an email delivery service.</p>'
   + '<p>You can also ask for your address to be deleted entirely. Use the Report an error form on any product page, say that you want your email address deleted, and include the address. The address and its alerts are then removed.</p>'
   + '<p>Questions about your alerts or this site can be sent to <a href="mailto:hancventures@gmail.com">hancventures@gmail.com</a>.</p>'
+  + '<p>The person responsible for personal information is Troy Hanc of HancVentures, reachable at hancventures@gmail.com.</p>'
   + '<p>This site also counts page views, clicks out to retailer pages, and searches that found nothing, as totals only. Those counts carry no name, no email address, and nothing that identifies a visitor. Your build, your province choice, and the products you recently viewed are remembered in your own browser, on your device, and are not sent anywhere.</p>'
   + '<p>This site uses Google Analytics to count visits and clicks on retailer links in aggregate, and it collects no names.</p></div>';
 }
@@ -2093,8 +2096,15 @@ PROVINCES.forEach(function(p){
   var o = document.createElement("option"); o.value=p.code; o.textContent = p.name+" ("+p.label+")"; sel.appendChild(o);
 });
 sel.value = "ON";
+try {
+  var savedProv = window.localStorage.getItem("hg-tax-province");
+  if (savedProv){
+    for (var j=0;j<PROVINCES.length;j++) if (PROVINCES[j].code===savedProv){ prov = PROVINCES[j]; sel.value = savedProv; }
+  }
+} catch(e){}
 sel.addEventListener("change", function(){
   for (var i=0;i<PROVINCES.length;i++) if (PROVINCES[i].code===sel.value) prov = PROVINCES[i];
+  try { window.localStorage.setItem("hg-tax-province", sel.value); } catch(e){}
   render();
 });
 
