@@ -186,6 +186,7 @@
   .rstrip .sep{color:var(--dim)}
   .footer-in .fcontact{font-size:.9rem;margin-top:2px}
   .footer-in .fcontact a{color:#fff;font-weight:600}
+  .footer-in .frecord{color:#C9D6E4;font-size:.9rem;margin-top:2px}
 
   /* Product detail */
   .detail{display:grid;grid-template-columns:1fr;gap:20px}
@@ -383,6 +384,7 @@ table.cmp2 tr.cmp-note td{background:var(--panel)}
       <div class="fname">Canada Home Gym Price Watch</div>
       <div class="ftag">The Canadian standard for home gym prices.</div>
       <div class="fcontact">Contact: <a href="mailto:hancventures@gmail.com">hancventures@gmail.com</a></div>
+      <div class="frecord">Price record started November 2026</div>
     </div>
     <nav aria-label="Footer">
       <button type="button" data-nav="privacy">Privacy</button>
@@ -1844,7 +1846,7 @@ function renderGuides(){
 function renderHow(){
   app.innerHTML =
   '<div class="panel"><h2>How this works</h2><p style="color:var(--red);font-weight:700">The Canadian standard for home gym prices.</p><p>This page sets out how this site gets its numbers: how prices are checked, how tax is worked out, where the specifications come from, how verdicts and rankings are decided, and how corrections are handled.</p></div>'
-  + '<div class="panel"><h3>How we check</h3><p>This site keeps a fixed watch list of named products at Canadian retailers. Prices are read from the retailer\'s own product page and recorded with the date of the check.</p><p>Prices are read daily: a short pulse reads each product\'s headline price and stock state every day, and records a dated check the day a price moves. The full record, features, specifications, delivery terms and variants in full, is checked every Thursday. Every price on the site carries the date it was last checked, and the price history labels each check as a daily pulse or a full check.</p><p>Stock is what the retailer\'s own page stated at our last check, and the check date is shown with it. Stock can change between checks. Where a retailer does not state stock, the record says Not stated.</p></div>'
+  + '<div class="panel"><h3>How we check</h3><p>This site keeps a fixed watch list of named products at Canadian retailers. Prices are read from the retailer\'s own product page and recorded with the date of the check.</p><p>Price record started November 2026</p><p>Prices are read daily: a short pulse reads each product\'s headline price and stock state every day, and records a dated check the day a price moves. The full record, features, specifications, delivery terms and variants in full, is checked every Thursday. Every price on the site carries the date it was last checked, and the price history labels each check as a daily pulse or a full check.</p><p>Stock is what the retailer\'s own page stated at our last check, and the check date is shown with it. Stock can change between checks. Where a retailer does not state stock, the record says Not stated.</p></div>'
   + '<div class="panel"><h3>Prices and tax</h3><p>Every product shows its shelf price and a tax in total computed for your own province, chosen with the province selector at the top of the page. The taxes that apply are named beside every total: HST in Ontario and the Atlantic provinces, GST alone in Alberta and the three territories, GST and PST in British Columbia and Saskatchewan, GST and RST in Manitoba, and GST and QST in Quebec.</p><p>Tax on shipped goods follows the province the goods are delivered to, so the selector asks where the gym is going, and every tax in total on the site follows that one choice. The shelf price itself never changes by province, so the price history, the lowest seen figures and every recorded drop are the same for every Canadian.</p><p>The shelf price is never the whole price anywhere in Canada, which is why the tax in total is printed beside it on every product, in the compare view, in the price history, and in the flooring room cost calculator.</p></div>'
   + '<div class="panel"><h3>Where the specs come from</h3><p>Every specification carries a small source label naming where it was read: the retailer page, the maker\'s support pages, its manual or specification sheet, its warranty document, or confirmed by the maker in writing.</p><p>Where two sources disagree, both wordings are printed and the disagreement is named. Where a maker does not publish a figure, the field reads Not stated.</p><p>Nothing is guessed, estimated from photos, or copied from another model.</p></div>'
   + '<div class="panel"><h3>Verdicts and rankings</h3><p>A verdict compares a product\'s current price with its own recorded price history on this site and its stated regular price. Rankings run on recorded numbers only.</p><p>Verdicts, rankings and ordering are never for sale, and commission never changes them.</p></div>'
