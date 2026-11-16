@@ -1,0 +1,52 @@
+name: Checker observe run
+
+# Daily observe only run of the standalone price checker.
+# It reads retailer pages, compares them against the live published
+# catalogue at canadahomegym.ca (--reference live), and commits the
+# run report to the checker-reports branch. It changes nothing on
+# main, publishes nothing, and sends no email.
+
+on:
+  schedule:
+    # About 11:40 UTC daily (6:40 AM EST / 7:40 AM EDT in Toronto).
+    - cron: "40 11 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  observe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run the checker in observe only mode against the live site
+        run: |
+          python3 tools/checker/checker.py --all-stores --reference live
+          ls -t reports/*.md | head -1
+
+      - name: Commit the run report to the checker-reports branch
+        run: |
+          REPORT=$(ls -t reports/*.md | head -1)
+          cp "$REPORT" "$RUNNER_TEMP/checker-run-report.md"
+          REPORT_NAME=$(basename "$REPORT")
+          git fetch origin checker-reports || true
+          if git show-ref --verify --quiet refs/remotes/origin/checker-reports; then
+            git checkout -B checker-reports origin/checker-reports
+          else
+            git checkout --orphan checker-reports
+            git rm -rf . >/dev/null 2>&1 || true
+          fi
+          mkdir -p reports
+          cp "$RUNNER_TEMP/checker-run-report.md" "reports/$REPORT_NAME"
+          git add reports
+          git -c user.name="checker" -c user.email="checker@localhost" \
+            commit -m "Checker observe report $REPORT_NAME"
+          git push origin checker-reports
