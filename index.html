@@ -1282,57 +1282,35 @@ function catPillsHtml(home){
   return h;
 }
 
-/* ---- Alert backend client: the same actions the working app calls ---- */
-var APP_ACTIONS_URL = "/spaces/v2/home-gym-price-watch/actions";
-var appCallSeq = 0;
-function callApp(action, args){
-  appCallSeq++;
-  return fetch(APP_ACTIONS_URL, { method:"POST", headers:{ "content-type":"application/json" }, body: JSON.stringify({ action: action, args: args || {}, actionCallId: "pub-" + Date.now() + "-" + appCallSeq }) })
-    .then(function(res){
-      return res.json().catch(function(){ return null; }).then(function(body){
-        if (!res.ok || !body || body.error) throw new Error(body && body.error ? String(body.error) : ("HTTP " + res.status));
-        return body.data;
-      });
-    });
-}
-var productIdsPromise = null;
-function ensureProductIds(){
-  if (!productIdsPromise){
-    productIdsPromise = callApp("listCatalogue", {}).then(function(data){
-      var map = {};
-      ((data && data.products) || []).forEach(function(x){ map[x.slug] = x.id; });
-      return map;
-    }, function(){ productIdsPromise = null; return {}; });
-  }
-  return productIdsPromise;
+/* ---- Price alerts by email: the signup opens the visitor's own mail app ---- */
+var ALERT_EMAIL = "hancventures@gmail.com";
+function alertMailtoHref(p, choiceText){
+  var subject = "Price alert: " + p.name;
+  var body = "Product: " + p.name + "\n"
+    + "Product page: https://canadahomegym.ca/#product=" + p.slug + "\n"
+    + "Alert me: " + choiceText;
+  return "mailto:" + ALERT_EMAIL + "?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body);
 }
 
 /* ---- Price alert signup form, the working app's AlertForm copy ---- */
 var alertFormSeq = 0;
 function alertFormHtml(p){
-  var done = state.alertDone[p.slug];
-  if (done){
-    var dh = '<div class="alert-done" role="status"><p><b>'+(done.bis ? "Back in stock alert saved for " : "Alert saved for ")+esc(p.name)+'.</b></p>';
-    if (done.state==="pending") dh += '<p style="margin-top:4px">It is pending confirmation. The confirmation email for '+esc(done.email)+' carries the link that switches this alert on, and until that link is clicked, no alert emails are sent. Prices are read daily, and alert emails go out after a check that finds a change.</p>';
-    else dh += '<p style="margin-top:4px">This email address is already confirmed, so the alert is on. Prices are read daily, and alert emails go out after a check that finds a change. Every alert email carries a link to manage or stop your alerts. No account, no password.</p>';
-    if (done.bis) dh += '<p style="margin-top:4px">We will email you once when a check records this product back in stock, and then the alert ends. Stock is what the retailer\u2019s page stated at the last check, not a promise of live availability.</p>';
-    dh += '</div>';
-    return dh;
-  }
   alertFormSeq++;
   var u = "af"+alertFormSeq+"-"+p.slug;
   var h = '<form class="alert-form" data-alertform="'+esc(p.slug)+'" novalidate>';
-  h += '<div><label for="'+u+'-email">Email for the alert</label><input type="email" id="'+u+'-email" name="email" placeholder="you@example.ca" autocomplete="email" /></div>';
-  h += '<div class="frow2"><label for="'+u+'-target">Alert me when the tax in total in '+esc(prov.name)+' drops below ($)</label><input type="number" id="'+u+'-target" name="target" min="0" step="0.01" inputmode="decimal" placeholder="Target total in dollars, tax in" /><p class="dim" style="font-size:.88rem;margin-top:4px">The total with '+esc(prov.label)+' in '+esc(prov.name)+', the price you actually pay. Leave blank to be alerted on any price drop.</p></div>';
-  h += '<div class="checkrow"><input type="checkbox" id="'+u+'-any" name="anychange" /><label for="'+u+'-any">Also tell me about any price change, rises included</label></div>';
+  h += '<p class="dim">Alerts run by email for now. Pick what to watch for below, and the button opens your mail app with the alert filled in for this product. Send that email from the address you want alerts sent to, and the alert is set up the same day.</p>';
+  h += '<div class="checkrow"><input type="radio" id="'+u+'-drop" name="alerttype" value="drop" checked /><label for="'+u+'-drop">Alert me on any price drop</label></div>';
+  h += '<div class="checkrow"><input type="radio" id="'+u+'-targetpick" name="alerttype" value="target" /><label for="'+u+'-targetpick">Alert me at a target tax in total</label></div>';
+  h += '<div class="frow2"><label for="'+u+'-target">Target tax in total in '+esc(prov.name)+' ($)</label><input type="number" id="'+u+'-target" name="target" min="0" step="0.01" inputmode="decimal" placeholder="Target total in dollars, tax in" /><p class="dim" style="font-size:.88rem;margin-top:4px">The total with '+esc(prov.label)+' in '+esc(prov.name)+', the price you actually pay. Pick the target choice above and fill this in.</p></div>';
   if (isOut(p)){
-    h += '<div style="margin-top:12px;border:1px solid var(--border);border-radius:8px;padding:12px"><div class="checkrow" style="margin-top:0"><input type="checkbox" id="'+u+'-bis" name="bis" /><label for="'+u+'-bis">Email me when this is back in stock</label></div><p class="dim" style="font-size:.9rem;margin-top:6px">This product is recorded out of stock. A back in stock alert emails you once when a check records it back in stock, then it ends. It replaces the price alert above for this signup: no target and no price change emails. Stock is what the retailer\u2019s page stated at the last check, not a promise of live availability.</p></div>';
+    h += '<div style="margin-top:12px;border:1px solid var(--border);border-radius:8px;padding:12px"><div class="checkrow" style="margin-top:0"><input type="radio" id="'+u+'-bis" name="alerttype" value="stock" /><label for="'+u+'-bis">Email me when this is back in stock</label></div><p class="dim" style="font-size:.9rem;margin-top:6px">This product is recorded out of stock. A back in stock alert emails you once when a check records it back in stock, then it ends. Stock is what the retailer\u2019s page stated at the last check, not a promise of live availability.</p></div>';
   }
-  h += '<p class="dim" style="margin-top:12px">Prices are read daily, and alert emails go out after a check that finds a change. You are also told if this product comes back in stock. A new alert stays pending until you click the confirmation link in the confirmation email.</p>';
-  h += '<p class="dim" style="margin-top:8px">Signups are open and every signup is saved. A confirmation email goes out when you sign up, and alert emails follow when a price you watch drops.</p>';
-  h += '<p style="margin-top:8px"><b>We email only the alerts you ask for. Unsubscribe in any email.</b></p>';
+  h += '<div class="checkrow"><input type="checkbox" id="'+u+'-any" name="anychange" /><label for="'+u+'-any">Also tell me about any price change, rises included</label></div>';
+  h += '<p class="dim" style="margin-top:12px">Prices are read daily, and alert emails go out after a check that finds a change. You are also told if this product comes back in stock.</p>';
+  h += '<p style="margin-top:8px"><b>We email only the alerts you ask for. To change or stop an alert, email hancventures@gmail.com.</b></p>';
   h += '<p class="alert-err" role="alert" style="display:none"></p>';
-  h += '<p style="margin-top:12px"><button type="submit" class="btn primary block">Alert me if '+esc(p.name)+' drops</button></p>';
+  h += '<p class="alert-status" role="status" style="display:none;margin-top:12px"></p>';
+  h += '<p style="margin-top:12px"><button type="submit" class="btn primary block">Open my mail app with this alert</button></p>';
   h += '</form>';
   return h;
 }
@@ -1346,149 +1324,16 @@ function parseAlertLinkHash(){
   if (!token) return null;
   return { token: token, mode: m[1].toLowerCase()==="confirm" ? "confirm" : (m[1].toLowerCase()==="unsubscribe" ? "unsubscribe" : "manage") };
 }
-function alertStateLabel(s){
-  if (s==="pending") return "Pending confirmation";
-  if (s==="paused") return "Paused";
-  if (s==="unsubscribed") return "Unsubscribed";
-  if (s==="closed") return "Closed, it fired";
-  return "Active";
-}
-function provinceName(code){ for (var i=0;i<PROVINCES.length;i++) if (PROVINCES[i].code===code) return PROVINCES[i].name; return code; }
-function taxInShortFor(code){ for (var i=0;i<PROVINCES.length;i++) if (PROVINCES[i].code===code) return "Tax in \u00b7 " + PROVINCES[i].name + " \u00b7 " + PROVINCES[i].label; return ""; }
 function enterManage(link){
-  state.manage = { token: link.token, mode: link.mode, phase: "loading", data: null, banner: "", confirmingUnsub: link.mode==="unsubscribe", confirmTried: false, unsubTried: false, seq: 0 };
+  state.manage = { token: link.token, mode: link.mode };
   state.view = "manage"; state.detail = null;
   render();
   window.scrollTo(0,0);
-  loadManage();
   return true;
 }
-function loadManage(){
-  var mg = state.manage; if (!mg) return;
-  var seq = ++mg.seq;
-  callApp("getAlertsByToken", { token: mg.token }).then(function(data){
-    if (state.view!=="manage" || !state.manage || state.manage.seq!==seq) return;
-    if (!data || !data.found){ state.manage.phase = "notfound"; state.manage.data = null; render(); return; }
-    state.manage.data = data; state.manage.phase = "ready";
-    render();
-    if (mg.mode==="confirm" && !mg.confirmTried){ mg.confirmTried = true; mgConfirm(); }
-    else if (mg.mode==="unsubscribe" && !mg.unsubTried){ mg.unsubTried = true; mgUnsubscribe(); }
-  }).catch(function(){
-    if (state.view!=="manage" || !state.manage || state.manage.seq!==seq) return;
-    state.manage.phase = "error"; state.manage.data = null; render();
-  });
-}
-function mgConfirm(){
-  var mg = state.manage; if (!mg) return;
-  callApp("confirmAlertsByToken", { token: mg.token }).then(function(r){
-    if (state.view!=="manage" || !state.manage) return;
-    state.manage.banner = (r && r.confirmed>0) ? "Your alerts are confirmed and switched on." : "Your alerts are already confirmed.";
-    loadManage();
-  }).catch(function(){
-    if (state.view!=="manage" || !state.manage) return;
-    state.manage.banner = "Confirmation did not save. Try the link again.";
-    render();
-  });
-}
-function mgPause(kind, id, paused){
-  var mg = state.manage; if (!mg) return;
-  callApp("setAlertPausedByToken", { token: mg.token, kind: kind, alert_id: id, paused: paused }).then(function(){ if (state.view==="manage") loadManage(); }).catch(function(){});
-}
-function mgDelete(kind, id){
-  var mg = state.manage; if (!mg) return;
-  callApp("deleteAlertByToken", { token: mg.token, kind: kind, alert_id: id }).then(function(){ if (state.view==="manage") loadManage(); }).catch(function(){});
-}
-function mgSaveTarget(id){
-  var mg = state.manage; if (!mg) return;
-  var inp = document.querySelector('[data-mgtarget="'+id+'"]');
-  var trimmed = inp ? inp.value.trim() : "";
-  var cents = null;
-  if (trimmed){ cents = Math.round(parseFloat(trimmed)*100); if (!isFinite(cents) || cents<=0) return; }
-  callApp("updateAlertTargetByToken", { token: mg.token, alert_id: id, target_tax_in_cents: cents }).then(function(){ if (state.view==="manage") loadManage(); }).catch(function(){});
-}
-function mgUnsubscribe(){
-  var mg = state.manage; if (!mg) return;
-  callApp("unsubscribeAllByToken", { token: mg.token }).then(function(){
-    if (state.view!=="manage" || !state.manage) return;
-    state.manage.banner = "All of your alerts are stopped.";
-    state.manage.confirmingUnsub = false;
-    loadManage();
-  }).catch(function(){
-    if (state.view!=="manage" || !state.manage) return;
-    state.manage.banner = "Unsubscribe did not save. Try the link again.";
-    render();
-  });
-}
 function renderManage(){
-  var mg = state.manage;
-  if (!mg){ state.view = "shop"; renderShop(); return; }
-  if (mg.phase==="loading"){ app.innerHTML = '<div class="panel"><p class="dim">Loading your alerts\u2026</p></div>'; return; }
-  if (mg.phase==="error"){
-    app.innerHTML = '<div class="panel" style="text-align:center"><h2>Your alerts could not be loaded</h2><p class="dim" style="margin-top:8px">The alert service did not answer, so nothing was changed. Try the link in your alert email again in a moment.</p></div>';
-    return;
-  }
-  if (mg.phase!=="ready" || !mg.data){
-    app.innerHTML = '<div class="panel" style="text-align:center"><h2>That link did not match any alerts</h2><p class="dim" style="margin-top:8px">The manage and unsubscribe links in your alert emails are the way back to your alerts. No other contact\u2019s alerts are ever shown here.</p></div>';
-    return;
-  }
-  var data = mg.data;
-  var h = '<div class="panel"><h2>Your alerts</h2>';
-  h += '<p class="dim" style="margin-top:6px">Alerts for '+esc(data.email)+'. Change a target, pause or resume an alert, or delete it. No password: this page is reached only through the link in your alert emails.</p>';
-  if (mg.banner) h += '<p class="banner" role="status">'+esc(mg.banner)+'</p>';
-  var hasPending = data.product_alerts.some(function(a){ return a.state==="pending"; }) || data.build_alerts.some(function(a){ return a.state==="pending"; });
-  if (hasPending && mg.mode!=="confirm"){
-    h += '<p class="dim" style="margin-top:12px">Some of your alerts are still pending confirmation. Only confirmed alerts can fire.</p><p style="margin-top:8px"><button type="button" class="btn primary" data-mgconfirm="1">Confirm my pending alerts</button></p>';
-  }
-  h += '</div>';
-  h += '<section class="panel" aria-label="Product alerts"><h3>Product alerts ('+data.product_alerts.length+')</h3>';
-  var bisCount = data.product_alerts.filter(function(a){ return a.back_in_stock; }).length;
-  if (bisCount) h += '<p class="dim" style="margin-top:4px">'+bisCount+' of these '+(bisCount===1 ? "is a back in stock alert" : "are back in stock alerts")+'; the rest are price alerts.</p>';
-  if (data.product_alerts.length){
-    data.product_alerts.forEach(function(a){
-      h += '<div class="manage-row"><p><b>'+esc(a.product_name)+'</b></p>';
-      h += '<p class="dim">'+esc(a.retailer)+' \u00b7 Province: '+esc(provinceName(a.province_code))+'</p>';
-      h += '<p style="margin-top:4px"><b>Status: '+alertStateLabel(a.state)+'</b></p>';
-      if (a.back_in_stock) h += '<p class="dim">Rule: Back in stock. We email you once when a check records this product back in stock, then this alert ends.</p>';
-      else if (a.target_tax_in_cents!=null) h += '<p class="dim">Target: <b class="price">'+cad(a.target_tax_in_cents)+'</b> tax in in '+esc(provinceName(a.province_code))+'</p>';
-      else if (a.legacy_target_price_cents!=null) h += '<p class="dim">Target: <b class="price">'+cad(a.legacy_target_price_cents)+'</b> shelf price</p>';
-      else h += '<p class="dim">Any price drop</p>';
-      if (a.any_change) h += '<p class="dim">Also told about any price change, rises included.</p>';
-      h += '<div class="mctrl">';
-      if (!a.back_in_stock){
-        h += '<span><label for="mgt-'+a.id+'" style="font-size:.8rem;font-weight:700;display:block">New tax in target in '+esc(provinceName(a.province_code))+' ($)</label><input type="number" id="mgt-'+a.id+'" data-mgtarget="'+a.id+'" min="0" step="0.01" inputmode="decimal" placeholder="Blank means any drop" value="'+(a.target_tax_in_cents!=null ? (a.target_tax_in_cents/100).toFixed(2) : "")+'" /></span>';
-        h += '<button type="button" class="btn" data-mgsave="'+a.id+'" aria-label="Save the new target for '+esc(a.product_name)+'">Save target</button>';
-      }
-      if (a.state==="paused" || a.state==="unsubscribed") h += '<button type="button" class="btn" data-mgpause="product:'+a.id+':0" aria-label="Resume the alert for '+esc(a.product_name)+'">Resume</button>';
-      else if (a.state==="active") h += '<button type="button" class="btn" data-mgpause="product:'+a.id+':1" aria-label="Pause the alert for '+esc(a.product_name)+'">Pause</button>';
-      h += '<button type="button" class="btn" style="color:var(--red)" data-mgdelete="product:'+a.id+'" aria-label="Delete the alert for '+esc(a.product_name)+'">Delete</button>';
-      h += '</div></div>';
-    });
-  } else h += '<p class="dim" style="margin-top:6px">No product alerts on this address.</p>';
-  h += '</section>';
-  h += '<section class="panel" aria-label="Build alerts"><h3>Build alerts ('+data.build_alerts.length+')</h3>';
-  if (data.build_alerts.length){
-    data.build_alerts.forEach(function(b){
-      h += '<div class="manage-row"><p><b>Build My Gym build</b></p>';
-      h += '<p class="dim">'+b.items.map(function(i){ return esc(i.sqft!=null ? (i.name+" ("+i.sqft+" sq ft)") : (i.name+" \u00d7 "+i.qty)); }).join(", ")+'</p>';
-      h += '<p style="margin-top:4px"><b>Status: '+alertStateLabel(b.state)+'</b></p>';
-      h += '<p class="dim">'+(b.threshold_cents!=null ? ("Fires when the total drops by at least <b class=\"price\">"+cad(b.threshold_cents)+"</b>. ") : "Fires on any drop in the total. ")+'Baseline total <b class="price">'+cad(b.baseline_total_cents)+'</b> \u00b7 Total now <b class="price">'+cad(b.current_total_cents)+'</b> \u00b7 '+esc(taxInShortFor(b.province_code))+'</p>';
-      h += '<div class="mctrl">';
-      if (b.state==="paused" || b.state==="unsubscribed") h += '<button type="button" class="btn" data-mgpause="build:'+b.id+':0" aria-label="Resume this build alert">Resume</button>';
-      else if (b.state==="active") h += '<button type="button" class="btn" data-mgpause="build:'+b.id+':1" aria-label="Pause this build alert">Pause</button>';
-      h += '<button type="button" class="btn" style="color:var(--red)" data-mgdelete="build:'+b.id+'" aria-label="Delete this build alert">Delete</button>';
-      h += '</div></div>';
-    });
-  } else h += '<p class="dim" style="margin-top:6px">No build alerts on this address.</p>';
-  h += '</section>';
-  h += '<section class="panel" aria-label="Unsubscribe"><h3>Unsubscribe</h3>';
-  if (mg.confirmingUnsub){
-    h += '<p class="dim" style="margin-top:6px">Stop every alert for '+esc(data.email)+'? Product alerts and build alerts all stop. You can resume one later from this page.</p>';
-    h += '<p style="margin-top:10px"><button type="button" class="btn primary" data-mgunsub="1" aria-label="Confirm unsubscribe from all alerts">Unsubscribe from all alerts</button> <button type="button" class="btn" data-mgkeep="1" aria-label="Keep my alerts">Keep my alerts</button></p>';
-  } else {
-    h += '<p style="margin-top:8px"><button type="button" class="btn" data-mgaskunsub="1" aria-label="Unsubscribe from all alerts">Unsubscribe from all alerts</button></p>';
-  }
-  h += '</section>';
-  app.innerHTML = h;
+  if (!state.manage){ state.view = "shop"; renderShop(); return; }
+  app.innerHTML = '<div class="panel" style="text-align:center"><h2>Alert links are handled by email right now</h2><p class="dim" style="margin-top:8px">To confirm, change, or stop your alerts, email <a href="mailto:hancventures@gmail.com">hancventures@gmail.com</a> and it will be done the same day.</p></div>';
 }
 
 /* ---- My fit rules, as in the working app: saved in this browser ---- */
@@ -1838,7 +1683,7 @@ function whatChangedHtml(){
 function homeSectionsHtml(){
   var h = whatChangedHtml();
   h += '<section class="panel" aria-label="Comparisons"><h3>Comparisons: three ways to choose</h3><p class="dim" style="margin-top:6px">Per kind of equipment, only three matchups: the lowest priced two, the high end two, and the two that lead on the spec that kind is bought on, shortest for trainers and racks, smallest footprint for cardio, widest range for adjustable weights. No other pairings of similar machines. A different kind of equipment gets its own three.</p><p style="margin-top:12px"><button type="button" class="btn primary" data-nav="comparisons" aria-label="Open the Comparisons page">Open comparisons</button></p></section>';
-  h += '<section class="panel" aria-label="Price alerts"><h3>Price alerts</h3><p class="dim" style="margin-top:6px">Set an alert on any product and the watch emails you when a check records a drop, a move under your target tax in total, or a return to stock. No account, no password. The signup sits on every product page and on every product card under Alert, and on the build page for a whole Build My Gym build.</p><p style="margin-top:12px"><button type="button" class="btn primary" data-nav="drops" aria-label="See the latest drops before setting an alert">See the latest drops</button> <button type="button" class="btn" data-nav="how" aria-label="Read how alerts work">How alerts work</button></p></section>';
+  h += '<section class="panel" aria-label="Price alerts"><h3>Price alerts</h3><p class="dim" style="margin-top:6px">Alerts run by email for now. Set an alert on any product and the watch emails you when a check records a drop, a move under your target tax in total, or a return to stock. No account, no password. Pick a product, pick your alert, and the signup button opens your mail app with the alert filled in. Send that email and the alert is set up the same day. The signup sits on every product page and on every product card under Alert, and on the build page for a whole Build My Gym build.</p><p style="margin-top:12px"><button type="button" class="btn primary" data-nav="drops" aria-label="See the latest drops before setting an alert">See the latest drops</button> <button type="button" class="btn" data-nav="how" aria-label="Read how alerts work">How alerts work</button></p></section>';
   return h;
 }
 
@@ -1918,7 +1763,7 @@ function dropsListHtml(){
 function renderDrops(){
   var h = '<div class="panel"><h2>Biggest drops this week</h2>';
   h += '<p class="dim" style="margin-top:6px">Price drops recorded by our checks in the last 7 days, ranked by percentage drop against the previous recorded price. Every price is dated, and every total is tax in for the province you selected.</p>';
-  h += '<p class="dim" style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px">Do not want to keep checking this page? Open any product and set a price alert on its page: the watch emails you when a check records a drop on that product, with no account and no password.</p>';
+  h += '<p class="dim" style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px">Do not want to keep checking this page? Open any product and set a price alert on its page. Alerts run by email for now: the signup opens your mail app with the alert filled in, and sending that email sets the alert up the same day, with no account and no password.</p>';
   h += dropsListHtml();
   h += '</div>';
   app.innerHTML = h;
@@ -2299,7 +2144,7 @@ function renderDetail(){
   else if (pricedLabel) h += '<p class="unitline">Price is for the '+esc(pricedLabel)+'.</p>';
   if (setLead) h += '<p class="unitline">About <span class="price">'+cad(setLead.perLbCents)+'</span> per lb (calculated)</p>';
   h += deliveryHighlightHtml(p);
-  h += '<div class="alert-callout"><p><b>Watching this price?</b></p><p class="dim" style="margin-top:4px">Set an alert and the watch emails you when a check records a drop on this product. No account, no password.</p><p style="margin-top:8px"><button type="button" class="btn primary" data-alertscroll="1" aria-label="Go to the price alert signup for '+esc(p.name)+'">Set a price alert</button></p></div>';
+  h += '<div class="alert-callout"><p><b>Watching this price?</b></p><p class="dim" style="margin-top:4px">Alerts run by email for now. The signup below opens your mail app with the alert filled in, and sending that email sets the alert up the same day. No account, no password.</p><p style="margin-top:8px"><button type="button" class="btn primary" data-alertscroll="1" aria-label="Go to the price alert signup for '+esc(p.name)+'">Set a price alert</button></p></div>';
   if (!pricedLabel && !isLineCard(p) && entry && pricedVariantExclusion(p)==="weight_plate") h += '<p class="entryline">Price is for the '+esc(entry)+'.</p>';
   if (p.regular && p.regular>p.price) h += '<p class="regline">'+cad(p.regular-p.price)+' below its regular price of '+cad(p.regular)+'</p>';
   if (vline) h += '<p class="entryline">'+esc(vline)+'</p>';
@@ -2340,7 +2185,7 @@ function renderDetail(){
     h += '<tr><td>'+fmtDate(c.checked_date)+'<span class="kindlabel">'+(c.check_kind==="pulse"?"Daily pulse":"Full check")+'</span></td><td class="price">'+cad(c.price_cents)+'</td><td>'+(c.regular_price_cents?cad(c.regular_price_cents):"None listed")+'</td><td>'+esc(c.stock_note||"Not stated")+'</td></tr>';
   });
   h += '</tbody></table>';
-  h += '<section id="product-alert-signup" class="panel" style="margin-top:22px" aria-label="Price drop alert signup"><h3>Get a price drop alert</h3><p class="dim" style="margin-top:4px">For this product only. Saved by the watch, no account or password.</p>' + alertFormHtml(p) + '</section>';
+  h += '<section id="product-alert-signup" class="panel" style="margin-top:22px" aria-label="Price drop alert signup"><h3>Get a price drop alert</h3><p class="dim" style="margin-top:4px">For this product only. Alerts run by email for now, with no account and no password.</p>' + alertFormHtml(p) + '</section>';
   app.innerHTML = h;
   if (state.alertFocus){ state.alertFocus = false; setTimeout(function(){ var el = document.getElementById("product-alert-signup"); if (el) el.scrollIntoView({block:"start"}); }, 120); }
   var ri = document.getElementById("roomIn");
@@ -2854,7 +2699,7 @@ window.addEventListener("popstate", function(){ applyHashToState(); });
 window.addEventListener("hashchange", function(){ applyHashToState(); });
 
 document.addEventListener("click", function(e){
-  var t = e.target.closest("[data-brand],[data-nav],[data-open],[data-tray],[data-cat],[data-guide],[data-backpill],[data-retailer],[data-clearretailer],[data-clearsearch],[data-subcat],[data-fchip],[data-fdelivery],[data-fstock],[data-fclear],[data-filters],[data-tfdelivery],[data-tfstock],[data-musthave],[data-cmpHow],[data-genHow],[data-cmpPageHow],[data-fullcmp],[data-cardalert],[data-alertscroll],[data-openalert],[data-sidebyside],[data-fit],[data-fitclear],[data-mgconfirm],[data-mgpause],[data-mgdelete],[data-mgsave],[data-mgaskunsub],[data-mgkeep],[data-mgunsub]");
+  var t = e.target.closest("[data-brand],[data-nav],[data-open],[data-tray],[data-cat],[data-guide],[data-backpill],[data-retailer],[data-clearretailer],[data-clearsearch],[data-subcat],[data-fchip],[data-fdelivery],[data-fstock],[data-fclear],[data-filters],[data-tfdelivery],[data-tfstock],[data-musthave],[data-cmpHow],[data-genHow],[data-cmpPageHow],[data-fullcmp],[data-cardalert],[data-alertscroll],[data-openalert],[data-sidebyside],[data-fit],[data-fitclear]");
   if (!t) return;
   if (t.hasAttribute("data-brand")){ e.preventDefault(); state.view = "shop"; state.cat = "all"; state.query = ""; state.retailer = null; state.guide = null; state.detail = null; syncProductHash(true); render(); window.scrollTo(0,0); }
   else if (t.hasAttribute("data-fullcmp")){ state.fullCmp = true; render(); }
@@ -2928,13 +2773,7 @@ document.addEventListener("click", function(e){
   else if (t.hasAttribute("data-sidebyside")){ var pr = t.getAttribute("data-sidebyside").split(","); state.tray = pr.filter(function(s){ return !!bySlug(s); }); state.trayNote = ""; state.fullCmp = false; go("compare"); }
   else if (t.hasAttribute("data-fit")){ state.fitOpen = !state.fitOpen; render(); }
   else if (t.hasAttribute("data-fitclear")){ state.fit = {ceilingIn:"",roomWidthFt:"",roomDepthFt:"",maxBudget:""}; saveFitRules(); render(); }
-  else if (t.hasAttribute("data-mgconfirm")){ mgConfirm(); }
-  else if (t.hasAttribute("data-mgpause")){ var pp = t.getAttribute("data-mgpause").split(":"); mgPause(pp[0], parseInt(pp[1],10), pp[2]==="1"); }
-  else if (t.hasAttribute("data-mgdelete")){ var dp = t.getAttribute("data-mgdelete").split(":"); mgDelete(dp[0], parseInt(dp[1],10)); }
-  else if (t.hasAttribute("data-mgsave")){ mgSaveTarget(parseInt(t.getAttribute("data-mgsave"),10)); }
-  else if (t.hasAttribute("data-mgaskunsub")){ if (state.manage){ state.manage.confirmingUnsub = true; render(); } }
-  else if (t.hasAttribute("data-mgkeep")){ if (state.manage){ state.manage.confirmingUnsub = false; render(); } }
-  else if (t.hasAttribute("data-mgunsub")){ mgUnsubscribe(); }
+
 });
 
 document.addEventListener("submit", function(e){
@@ -2943,42 +2782,42 @@ document.addEventListener("submit", function(e){
   e.preventDefault();
   var slug = form.getAttribute("data-alertform");
   var p = bySlug(slug); if (!p) return;
-  var emailEl = form.querySelector('[name="email"]');
   var targetEl = form.querySelector('[name="target"]');
   var anyEl = form.querySelector('[name="anychange"]');
-  var bisEl = form.querySelector('[name="bis"]');
+  var typeEl = form.querySelector('[name="alerttype"]:checked');
   var errEl = form.querySelector(".alert-err");
-  var btn = form.querySelector('button[type="submit"]');
-  function fail(msg){ if (errEl){ errEl.textContent = msg; errEl.style.display = "block"; } if (btn){ btn.disabled = false; btn.textContent = btn.getAttribute("data-label") || btn.textContent; } }
-  var email = emailEl ? emailEl.value.trim() : "";
-  if (!email){ fail("Add your email so the alert has somewhere to go."); return; }
-  var bis = !!(bisEl && bisEl.checked);
-  var targetCents = null;
-  if (!bis && targetEl && targetEl.value.trim()){
-    var tc = Math.round(parseFloat(targetEl.value)*100);
-    if (!isFinite(tc) || tc<=0){ fail("Check the target and try again, or leave it blank for any price drop."); return; }
-    targetCents = tc;
+  var statusEl = form.querySelector(".alert-status");
+  function fail(msg){ if (errEl){ errEl.textContent = msg; errEl.style.display = "block"; } }
+  var type = typeEl ? typeEl.value : "drop";
+  var choiceText = "";
+  if (type==="stock"){
+    choiceText = "When this product is back in stock";
+  } else if (type==="target"){
+    var raw = targetEl ? targetEl.value.trim() : "";
+    if (!raw){ fail("Add your target total, or pick any price drop above."); return; }
+    var tc = Math.round(parseFloat(raw)*100);
+    if (!isFinite(tc) || tc<=0){ fail("Check the target and try again, or pick any price drop above."); return; }
+    choiceText = "When the tax in total drops below " + cad(tc) + " in " + prov.name;
+    if (anyEl && anyEl.checked) choiceText += ". Also tell me about any price change, rises included";
+  } else {
+    choiceText = (anyEl && anyEl.checked) ? "On any price change, rises included" : "On any price drop";
   }
   if (errEl) errEl.style.display = "none";
-  if (btn){ btn.setAttribute("data-label", btn.textContent); btn.disabled = true; btn.textContent = "Saving\u2026"; }
-  ensureProductIds().then(function(map){
-    var pid = map[slug];
-    if (!pid) throw new Error("no id");
-    return callApp("signupAlert", { product_id: pid, email: email, province_code: prov.code, target_tax_in_cents: bis ? null : targetCents, any_change: bis ? false : !!(anyEl && anyEl.checked), back_in_stock: bis });
-  }).then(function(r){
-    state.alertDone[slug] = { state: (r && r.state==="active") ? "active" : "pending", email: email, bis: bis };
-    render();
-  }).catch(function(){ fail("That signup did not save. Check the email and try again."); });
+  var href = alertMailtoHref(p, choiceText);
+  if (statusEl){
+    statusEl.innerHTML = 'Your mail app should open with the alert filled in. If it did not open, <a href="'+esc(href)+'">open the filled in email here</a>. Send that email and the alert is set up the same day.';
+    statusEl.style.display = "block";
+  }
+  window.location.href = href;
 });
 
 document.addEventListener("change", function(e){
   var el = e.target;
-  if (!el || el.name!=="bis") return;
+  if (!el || el.name!=="target") return;
   var form = el.closest ? el.closest("form[data-alertform]") : null;
   if (!form) return;
-  var btn = form.querySelector('button[type="submit"]');
-  var p = bySlug(form.getAttribute("data-alertform"));
-  if (btn && p) btn.textContent = el.checked ? "Email me when this is back in stock" : ("Alert me if "+p.name+" drops");
+  var r = form.querySelector('[name="alerttype"][value="target"]');
+  if (r && el.value.trim()) r.checked = true;
 });
 
 var sel = document.getElementById("provSel");
