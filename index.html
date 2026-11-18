@@ -389,8 +389,14 @@ table.cmp2 tr.cmp-note td{background:var(--panel)}
 
 /* ---- What changed, Comparisons, alerts, manage, My fit ---- */
 .wch-list{list-style:none;margin:10px 0 0;padding:0}
-.wch-row{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;padding:7px 0;border-top:1px solid var(--border)}
+.wch-row{display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-top:1px solid var(--border)}
 .wch-row:first-child{border-top:none}
+.wch-main{flex:1;min-width:0}
+.wch-head{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px}
+.wch-det{display:block;margin-top:2px}
+.wch-thumb{flex:0 0 56px;width:56px;height:56px;border-radius:6px;overflow:hidden;background:var(--surface);display:block}
+button.wch-thumb{border:0;padding:0;cursor:pointer;min-height:0}
+.wch-thumb img{width:100%;height:100%;object-fit:contain}
 .wch-chip{font-size:.72rem;font-weight:800;padding:2px 8px;border-radius:999px;white-space:nowrap}
 .wch-back{background:var(--green-soft);color:var(--green)}
 .wch-drop{background:var(--red-soft);color:var(--red-dark)}
@@ -1660,6 +1666,17 @@ function computeRecentChanges(){
   });
   return out.slice(0, 12);
 }
+/* The product's own photo as a small thumbnail in a What changed row, the
+   same thumbnail treatment the drops cards use (home page photo pass,
+   Nov 18, 2026): the whole product fitted in a fixed 56px frame on the
+   surface colour, never cropped. Tapping it opens the product page, like
+   the name beside it; the name sits beside it, so the thumbnail itself is
+   decorative. A product with no photo keeps the same plain frame, so
+   every row keeps its shape. */
+function wchThumbHtml(p){
+  if (!p.photo) return '<span class="wch-thumb" aria-hidden="true"></span>';
+  return '<button type="button" class="wch-thumb" data-open="'+esc(p.slug)+'" aria-label="View details for '+esc(p.name)+'"><img src="'+esc(p.photo)+'" alt="" loading="lazy" decoding="async" /></button>';
+}
 function whatChangedHtml(){
   var changes = computeRecentChanges();
   var h = '<section class="panel" aria-label="What changed"><div style="display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 12px"><h3>What changed</h3><button type="button" class="glink" data-nav="drops" aria-label="Open the Drops page" style="color:var(--red)">All drops this week</button></div>';
@@ -1667,11 +1684,11 @@ function whatChangedHtml(){
   if (changes.length){
     h += '<ul class="wch-list">';
     changes.slice(0, 6).forEach(function(c){
-      h += '<li class="wch-row"><span class="wch-chip '+(c.kind==="back_in_stock" ? "wch-back" : (c.kind==="drop" ? "wch-drop" : "wch-rise"))+'">'+(c.kind==="back_in_stock" ? "Back in stock" : (c.kind==="drop" ? "Price drop" : "Price rise"))+'</span>';
-      h += '<button type="button" class="name-link" data-open="'+esc(c.p.slug)+'" aria-label="View '+esc(c.p.name)+'"><b>'+esc(c.p.name)+'</b></button>';
-      if (c.kind==="back_in_stock") h += '<span class="dim">Recorded back in stock '+fmtDate(c.date)+' \u00b7 <b style="color:var(--text)">'+cad(c.curCents)+'</b> shelf</span>';
-      else h += '<span class="dim">'+cad(c.prevCents)+' \u2192 <b style="color:var(--text)">'+cad(c.curCents)+'</b> shelf ('+cad(Math.abs(c.change))+' '+(c.change<0 ? "down" : "up")+', '+fmtDate(c.date)+') \u00b7 '+cad(taxIn(c.curCents))+' tax in</span>';
-      h += '</li>';
+      h += '<li class="wch-row">'+wchThumbHtml(c.p)+'<div class="wch-main"><div class="wch-head"><span class="wch-chip '+(c.kind==="back_in_stock" ? "wch-back" : (c.kind==="drop" ? "wch-drop" : "wch-rise"))+'">'+(c.kind==="back_in_stock" ? "Back in stock" : (c.kind==="drop" ? "Price drop" : "Price rise"))+'</span>';
+      h += '<button type="button" class="name-link" data-open="'+esc(c.p.slug)+'" aria-label="View '+esc(c.p.name)+'"><b>'+esc(c.p.name)+'</b></button></div>';
+      if (c.kind==="back_in_stock") h += '<span class="dim wch-det">Recorded back in stock '+fmtDate(c.date)+' \u00b7 <b style="color:var(--text)">'+cad(c.curCents)+'</b> shelf</span>';
+      else h += '<span class="dim wch-det">'+cad(c.prevCents)+' \u2192 <b style="color:var(--text)">'+cad(c.curCents)+'</b> shelf ('+cad(Math.abs(c.change))+' '+(c.change<0 ? "down" : "up")+', '+fmtDate(c.date)+') \u00b7 '+cad(taxIn(c.curCents))+' tax in</span>';
+      h += '</div></li>';
     });
     h += '</ul>';
   } else {
@@ -1705,7 +1722,6 @@ function renderHome(){
     h += '<button type="button" class="cat-tile" data-cat="'+c.id+'" aria-label="Shop '+esc(c.name)+'">'+(rep&&rep.photo?'<img src="'+esc(rep.photo)+'" alt="" loading="lazy" decoding="async" />':'')+'<span class="ct"><b>'+esc(c.name)+'</b><span class="ccount">'+items.length+' products</span><span>'+esc(c.blurb)+'</span>'+(latest?'<span class="clast">Last checked '+fmtDate(latest)+'</span>':'')+'</span></button>';
   });
   h += '</div></section>';
-  h += '<section aria-label="Biggest drops" style="margin-top:28px"><h2 class="viewtitle">Biggest drops</h2>' + dropsListHtml() + '</section>';
   app.innerHTML = h;
 }
 
