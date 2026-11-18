@@ -726,7 +726,7 @@ function calcKindLine(kind){
   if (kind==="paid") return "Shipping paid at checkout, as stated";
   return "Shipping calculated at checkout, as stated";
 }
-function cardDeliveryLine(note){
+function cardDeliveryLineShort(note){
   var t = parseShippingTerms(note);
   if (t.includedDelivery) return "Delivery and setup included, as stated";
   if (t.freeThresholdCents!=null){
@@ -757,6 +757,26 @@ function cardDeliveryLine(note){
   if (t.calcKind) return calcKindLine(t.calcKind);
   if (!t.raw || termsArePureNotStated(t.raw)) return "Delivery terms are not stated";
   return termsFallbackLine(t.raw);
+}
+function statedPickupSentence(raw){
+  if (!raw) return null;
+  var sentences = raw.split(/(?<=\.)\s+/);
+  for (var i=0;i<sentences.length;i++){
+    var s = sentences[i].trim();
+    if (!/^(?:free\s+)?(?:local\s+|in-store\s+|in store\s+|store\s+|warehouse\s+|curbside\s+)?pickup\b/i.test(s)) continue;
+    if (/not stated|disabled|unavailable|not available|not offered|no pickup|pickup is not/i.test(s)) continue;
+    if (s.replace(/[.\s]+$/, "").length < 12) continue;
+    return s;
+  }
+  return null;
+}
+function cardDeliveryLine(note){
+  var line = cardDeliveryLineShort(note);
+  if (/pickup/i.test(line)) return line;
+  if (/flat rate never over|shipping capped at|^flat \$[\d,.]+ shipping, as stated/i.test(line)) return line;
+  var pickup = statedPickupSentence(String(note==null?"":note).trim());
+  if (!pickup) return line;
+  return line.replace(/[.\s]+$/, "") + ". " + pickup;
 }
 function deliveryHighlight(note, taxInCents){
   var line = cardDeliveryLine(note==null?"":note);
@@ -2244,6 +2264,7 @@ function renderDetail(){
   else if (pricedLabel) h += '<p class="unitline">Price is for the '+esc(pricedLabel)+'.</p>';
   if (setLead) h += '<p class="unitline">About <span class="price">'+cad(setLead.perLbCents)+'</span> per lb (calculated)</p>';
   h += deliveryHighlightHtml(p);
+  h += '<p class="dim recorded-terms" style="margin-top:10px;font-size:.88rem;line-height:1.5">Recorded delivery terms: '+esc((p.ship||"").trim() ? p.ship : "No delivery terms recorded for this item.")+'</p>';
   h += '<div class="alert-callout"><p><b>Watching this price?</b></p><p class="dim" style="margin-top:4px">Alerts run by email for now. The signup below opens your mail app with the alert filled in, and sending that email sets the alert up the same day. No account, no password.</p><p style="margin-top:8px"><button type="button" class="btn primary" data-alertscroll="1" aria-label="Go to the price alert signup for '+esc(p.name)+'">Set a price alert</button></p></div>';
   if (!pricedLabel && !isLineCard(p) && entry && pricedVariantExclusion(p)==="weight_plate") h += '<p class="entryline">Price is for the '+esc(entry)+'.</p>';
   if (p.regular && p.regular>p.price) h += '<p class="regline">'+cad(p.regular-p.price)+' below its regular price of '+cad(p.regular)+'</p>';
