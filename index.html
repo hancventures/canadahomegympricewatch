@@ -1339,9 +1339,12 @@ function alertFormHtml(p){
 
 /* ---- Alert manage page: #confirm=, #alerts= and #unsubscribe= links ---- */
 function parseAlertLinkHash(){
-  var m = /(confirm|alerts|unsubscribe)=([a-f0-9]{32,64})/i.exec(window.location.hash || "");
+  var m = /(confirm|alerts|unsubscribe)=([^&#]+)/i.exec(window.location.hash || "");
   if (!m) return null;
-  return { token: m[2].toLowerCase(), mode: m[1]==="confirm" ? "confirm" : (m[1]==="unsubscribe" ? "unsubscribe" : "manage") };
+  var token = m[2];
+  try { token = decodeURIComponent(token); } catch(e){}
+  if (!token) return null;
+  return { token: token, mode: m[1].toLowerCase()==="confirm" ? "confirm" : (m[1].toLowerCase()==="unsubscribe" ? "unsubscribe" : "manage") };
 }
 function alertStateLabel(s){
   if (s==="pending") return "Pending confirmation";
@@ -1353,7 +1356,7 @@ function alertStateLabel(s){
 function provinceName(code){ for (var i=0;i<PROVINCES.length;i++) if (PROVINCES[i].code===code) return PROVINCES[i].name; return code; }
 function taxInShortFor(code){ for (var i=0;i<PROVINCES.length;i++) if (PROVINCES[i].code===code) return "Tax in \u00b7 " + PROVINCES[i].name + " \u00b7 " + PROVINCES[i].label; return ""; }
 function enterManage(link){
-  state.manage = { token: link.token, mode: link.mode, phase: "loading", data: null, banner: "", confirmingUnsub: link.mode==="unsubscribe", confirmTried: false, seq: 0 };
+  state.manage = { token: link.token, mode: link.mode, phase: "loading", data: null, banner: "", confirmingUnsub: link.mode==="unsubscribe", confirmTried: false, unsubTried: false, seq: 0 };
   state.view = "manage"; state.detail = null;
   render();
   window.scrollTo(0,0);
@@ -1369,9 +1372,10 @@ function loadManage(){
     state.manage.data = data; state.manage.phase = "ready";
     render();
     if (mg.mode==="confirm" && !mg.confirmTried){ mg.confirmTried = true; mgConfirm(); }
+    else if (mg.mode==="unsubscribe" && !mg.unsubTried){ mg.unsubTried = true; mgUnsubscribe(); }
   }).catch(function(){
     if (state.view!=="manage" || !state.manage || state.manage.seq!==seq) return;
-    state.manage.phase = "notfound"; state.manage.data = null; render();
+    state.manage.phase = "error"; state.manage.data = null; render();
   });
 }
 function mgConfirm(){
@@ -1409,12 +1413,20 @@ function mgUnsubscribe(){
     state.manage.banner = "All of your alerts are stopped.";
     state.manage.confirmingUnsub = false;
     loadManage();
-  }).catch(function(){});
+  }).catch(function(){
+    if (state.view!=="manage" || !state.manage) return;
+    state.manage.banner = "Unsubscribe did not save. Try the link again.";
+    render();
+  });
 }
 function renderManage(){
   var mg = state.manage;
   if (!mg){ state.view = "shop"; renderShop(); return; }
   if (mg.phase==="loading"){ app.innerHTML = '<div class="panel"><p class="dim">Loading your alerts\u2026</p></div>'; return; }
+  if (mg.phase==="error"){
+    app.innerHTML = '<div class="panel" style="text-align:center"><h2>Your alerts could not be loaded</h2><p class="dim" style="margin-top:8px">The alert service did not answer, so nothing was changed. Try the link in your alert email again in a moment.</p></div>';
+    return;
+  }
   if (mg.phase!=="ready" || !mg.data){
     app.innerHTML = '<div class="panel" style="text-align:center"><h2>That link did not match any alerts</h2><p class="dim" style="margin-top:8px">The manage and unsubscribe links in your alert emails are the way back to your alerts. No other contact\u2019s alerts are ever shown here.</p></div>';
     return;
@@ -2785,7 +2797,7 @@ function productSlugFromHash(){
 function desiredProductHash(){
   if (state.view==="detail" && state.detail && bySlug(state.detail)) return "#product=" + encodeURIComponent(state.detail);
   if (state.view==="comparisons") return "#comparisons";
-  if (state.view==="manage" && state.manage) return "#alerts=" + state.manage.token;
+  if (state.view==="manage" && state.manage) return "#alerts=" + encodeURIComponent(state.manage.token);
   return "";
 }
 function syncProductHash(push){
