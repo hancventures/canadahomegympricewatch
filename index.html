@@ -1370,12 +1370,12 @@ function alertFormHtml(p){
   var h = '<form class="alert-form" data-alertform="'+esc(p.slug)+'" novalidate>';
   h += '<p class="dim">Alerts run by email for now. Pick what to watch for below, and the button opens your mail app with the alert filled in for this product. Send that email from the address you want alerts sent to, and the alert is set up the same day.</p>';
   h += '<div class="checkrow"><input type="radio" id="'+u+'-drop" name="alerttype" value="drop" checked /><label for="'+u+'-drop">Alert me on any price drop</label></div>';
+  h += '<div class="checkrow"><input type="radio" id="'+u+'-change" name="alerttype" value="change" /><label for="'+u+'-change">Alert me on any price change, rises included</label></div>';
   h += '<div class="checkrow"><input type="radio" id="'+u+'-targetpick" name="alerttype" value="target" /><label for="'+u+'-targetpick">Alert me at a target tax in total</label></div>';
-  h += '<div class="frow2"><label for="'+u+'-target">Target tax in total in '+esc(prov.name)+' ($)</label><input type="number" id="'+u+'-target" name="target" min="0" step="0.01" inputmode="decimal" placeholder="Target total in dollars, tax in" /><p class="dim" style="font-size:.88rem;margin-top:4px">The total with '+esc(prov.label)+' in '+esc(prov.name)+', the price you actually pay. Pick the target choice above and fill this in.</p></div>';
+  h += '<div class="frow2" data-targetwrap style="display:none"><label for="'+u+'-target">Target tax in total in '+esc(prov.name)+' ($)</label><input type="number" id="'+u+'-target" name="target" min="0" step="0.01" inputmode="decimal" placeholder="Target total in dollars, tax in" /><p class="dim" style="font-size:.88rem;margin-top:4px">The total with '+esc(prov.label)+' in '+esc(prov.name)+', the price you actually pay.</p></div>';
   if (isOut(p)){
     h += '<div style="margin-top:12px;border:1px solid var(--border);border-radius:8px;padding:12px"><div class="checkrow" style="margin-top:0"><input type="radio" id="'+u+'-bis" name="alerttype" value="stock" /><label for="'+u+'-bis">Email me when this is back in stock</label></div><p class="dim" style="font-size:.9rem;margin-top:6px">This product is recorded out of stock. A back in stock alert emails you once when a check records it back in stock, then it ends. Stock is what the retailer\u2019s page stated at the last check, not a promise of live availability.</p></div>';
   }
-  h += '<div class="checkrow"><input type="checkbox" id="'+u+'-any" name="anychange" /><label for="'+u+'-any">Also tell me about any price change, rises included</label></div>';
   h += '<p class="dim" style="margin-top:12px">Prices are read daily, and alert emails go out after a check that finds a change. You are also told if this product comes back in stock.</p>';
   h += '<p style="margin-top:8px"><b>We email only the alerts you ask for. To change or stop an alert, email hancventures@gmail.com.</b></p>';
   h += '<p class="alert-err" role="alert" style="display:none"></p>';
@@ -2306,7 +2306,7 @@ function renderDetail(){
     h += '<tr><td>'+fmtDate(c.checked_date)+'<span class="kindlabel">'+(c.check_kind==="pulse"?"Daily pulse":"Full check")+'</span></td><td class="price">'+cad(c.price_cents)+'</td><td>'+(c.regular_price_cents?cad(c.regular_price_cents):"None listed")+'</td><td>'+esc(c.stock_note||"Not stated")+'</td></tr>';
   });
   h += '</tbody></table>';
-  h += '<section id="product-alert-signup" class="panel" style="margin-top:22px" aria-label="Price drop alert signup"><h3>Get a price drop alert</h3><p class="dim" style="margin-top:4px">For this product only. Alerts run by email for now, with no account and no password.</p>' + alertFormHtml(p) + '</section>';
+  h += '<section id="product-alert-signup" class="panel" style="margin-top:22px" aria-label="Price alert signup"><h3>Get a price alert</h3><p class="dim" style="margin-top:4px">For this product only. Alerts run by email for now, with no account and no password.</p>' + alertFormHtml(p) + '</section>';
   app.innerHTML = h;
   if (state.alertFocus){ state.alertFocus = false; setTimeout(function(){ var el = document.getElementById("product-alert-signup"); if (el) el.scrollIntoView({block:"start"}); }, 120); }
   var ri = document.getElementById("roomIn");
@@ -2905,7 +2905,6 @@ document.addEventListener("submit", function(e){
   var slug = form.getAttribute("data-alertform");
   var p = bySlug(slug); if (!p) return;
   var targetEl = form.querySelector('[name="target"]');
-  var anyEl = form.querySelector('[name="anychange"]');
   var typeEl = form.querySelector('[name="alerttype"]:checked');
   var errEl = form.querySelector(".alert-err");
   var statusEl = form.querySelector(".alert-status");
@@ -2920,9 +2919,10 @@ document.addEventListener("submit", function(e){
     var tc = Math.round(parseFloat(raw)*100);
     if (!isFinite(tc) || tc<=0){ fail("Check the target and try again, or pick any price drop above."); return; }
     choiceText = "When the tax in total drops below " + cad(tc) + " in " + prov.name;
-    if (anyEl && anyEl.checked) choiceText += ". Also tell me about any price change, rises included";
+  } else if (type==="change"){
+    choiceText = "On any price change, rises included";
   } else {
-    choiceText = (anyEl && anyEl.checked) ? "On any price change, rises included" : "On any price drop";
+    choiceText = "On any price drop";
   }
   if (errEl) errEl.style.display = "none";
   var href = alertMailtoHref(p, choiceText);
@@ -2935,11 +2935,24 @@ document.addEventListener("submit", function(e){
 
 document.addEventListener("change", function(e){
   var el = e.target;
-  if (!el || el.name!=="target") return;
+  if (!el) return;
   var form = el.closest ? el.closest("form[data-alertform]") : null;
   if (!form) return;
+  if (el.name==="alerttype"){
+    var wrap = form.querySelector("[data-targetwrap]");
+    if (wrap){
+      var sel = form.querySelector('[name="alerttype"]:checked');
+      wrap.style.display = (sel && sel.value==="target") ? "" : "none";
+    }
+    return;
+  }
+  if (el.name!=="target") return;
   var r = form.querySelector('[name="alerttype"][value="target"]');
-  if (r && el.value.trim()) r.checked = true;
+  if (r && el.value.trim()){
+    r.checked = true;
+    var wrap2 = form.querySelector("[data-targetwrap]");
+    if (wrap2) wrap2.style.display = "";
+  }
 });
 
 var sel = document.getElementById("provSel");
