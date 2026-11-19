@@ -661,24 +661,43 @@ function statedMoney(s){
   var n = parseFloat(String(s).replace(/,/g,""));
   return (isFinite(n) && n>0) ? Math.round(n*100) : null;
 }
+function shippingClauses(t){
+  return String(t).split(/(?<=[.;]["']?)\s+/).map(function(s){ return s.trim(); }).filter(Boolean);
+}
+function clauseNegatesFreeShipping(clause){
+  if (/not stated/i.test(clause)) return true;
+  if (/not included/i.test(clause)) return true;
+  if (/not made/i.test(clause)) return true;
+  if (/\bno\b[^.;]*\bfree shipping\b/i.test(clause)) return true;
+  if (/does not qualify|not qualify/i.test(clause)) return true;
+  if (/excludes free shipping/i.test(clause)) return true;
+  return false;
+}
+function clauseOffersFreeShipping(clause){
+  return /free\s+(?:standard\s+)?shipping/i.test(clause) || /free\s+delivery/i.test(clause) || /\bships?\s+free\b/i.test(clause);
+}
+function statedFreeShippingClauses(t){
+  return shippingClauses(t).filter(function(c){ return clauseOffersFreeShipping(c) && !clauseNegatesFreeShipping(c); });
+}
 function parseShippingTerms(note){
   var t = String(note==null?"":note).trim();
-  var terms = { raw:t, includedDelivery:false, freeThresholdCents:null, freeOutright:false, freeQualified:null, freePromotion:false, flatFeeCents:null, capCents:null, calcKind:null, pickupOnly:false, pickupPlace:null, explicitNotStated:false };
+  var terms = { raw:t, includedDelivery:false, freeThresholdCents:null, freeOutright:false, freeQualified:null, freePromotion:false, freeText:"", flatFeeCents:null, capCents:null, calcKind:null, pickupOnly:false, pickupPlace:null, explicitNotStated:false };
   if (!t){ terms.explicitNotStated = true; return terms; }
   terms.includedDelivery = /delivery and (setup|assembly) included/i.test(t);
-  var m1 = /free(?:\s+standard)?\s+shipping[^.]*?over\s*\$\s*([\d,]+(?:\.\d{2})?)/i.exec(t);
+  var offerClauses = statedFreeShippingClauses(t);
+  terms.freeText = offerClauses.join(" ");
+  var m1 = null;
+  for (var ci=0; ci<offerClauses.length && !m1; ci++){ m1 = /free(?:\s+standard)?\s+shipping[^.]*?over\s*\$\s*([\d,]+(?:\.\d{2})?)/i.exec(offerClauses[ci]); }
   terms.freeThresholdCents = statedMoney(m1 ? m1[1] : undefined);
   var m2 = /(?:never over|capped at)\s*\$\s*([\d,]+(?:\.\d{2})?)/i.exec(t);
   terms.capCents = statedMoney(m2 ? m2[1] : undefined);
   var m3 = /flat\s*\$\s*([\d,]+(?:\.\d{2})?)\s*shipping/i.exec(t);
   terms.flatFeeCents = statedMoney(m3 ? m3[1] : undefined);
-  if (!/no free shipping statement/i.test(t) && terms.freeThresholdCents==null){
-    if (/free\s+(?:standard\s+)?shipping/i.test(t) || /free\s+delivery/i.test(t) || /\bships?\s+free\b/i.test(t)) terms.freeOutright = true;
-  }
+  if (terms.freeThresholdCents==null && offerClauses.length) terms.freeOutright = true;
   if (terms.freeOutright){
-    if (/to most major cities/i.test(t)) terms.freeQualified = "to most major cities";
-    else if (/in most major cities/i.test(t)) terms.freeQualified = "in most major cities";
-    terms.freePromotion = /free shipping promotion/i.test(t);
+    if (/to most major cities/i.test(terms.freeText)) terms.freeQualified = "to most major cities";
+    else if (/in most major cities/i.test(terms.freeText)) terms.freeQualified = "in most major cities";
+    terms.freePromotion = /free shipping promotion/i.test(terms.freeText);
   }
   if (/calculated in the cart/i.test(t)) terms.calcKind = "cart";
   else if (/paid at checkout/i.test(t)) terms.calcKind = "paid";
@@ -729,16 +748,16 @@ function calcKindLine(kind){
 function cardDeliveryLineShort(note){
   var t = parseShippingTerms(note);
   if (t.includedDelivery) return "Delivery and setup included, as stated";
+  if (t.pickupOnly) return "Pickup only" + (t.pickupPlace ? " " + t.pickupPlace : "") + ", as stated";
   if (t.freeThresholdCents!=null){
     var head = "Free shipping over " + cad(t.freeThresholdCents) + ", as stated";
     return t.capCents!=null ? head + " \u00b7 Flat rate never over " + cad(t.capCents) : head;
   }
   if (t.freeOutright){
     if (t.freePromotion) return "Free shipping promotion, as stated";
-    if (/free shipping in canada/i.test(t.raw)) return "Free shipping in Canada, as stated";
+    if (/free shipping in canada/i.test(t.freeText)) return "Free shipping in Canada, as stated";
     return t.freeQualified ? "Free shipping " + t.freeQualified + ", as stated" : "Free shipping, as stated";
   }
-  if (t.pickupOnly) return "Pickup only" + (t.pickupPlace ? " " + t.pickupPlace : "") + ", as stated";
   if (/freight/i.test(t.raw) && /weight and destination/i.test(t.raw)){
     return /curbside/i.test(t.raw)
       ? "Curbside delivery only. Freight charged by weight and destination, no single stated amount, as stated"
@@ -784,12 +803,12 @@ function deliveryHighlight(note, taxInCents){
   var none = { line:line, allInCents:null, kind:null, feeCents:null };
   if (!t.raw) return none;
   if (t.explicitNotStated && termsArePureNotStated(t.raw)) return none;
+  if (t.pickupOnly) return { line:line, allInCents:taxInCents, kind:"pickup", feeCents:0 };
   if (t.freeThresholdCents!=null) return none;
   if (t.capCents!=null) return none;
   if (t.calcKind!=null) return none;
   if (/\bzone\b/i.test(t.raw)) return none;
   if (/freight[^.]*\bquot|\bquot\w*[^.]*freight/i.test(t.raw)) return none;
-  if (t.pickupOnly) return { line:line, allInCents:taxInCents, kind:"pickup", feeCents:0 };
   if (t.includedDelivery) return { line:line, allInCents:taxInCents, kind:"free", feeCents:0 };
   if (t.freeOutright){
     if (t.freeQualified || t.freePromotion) return none;
