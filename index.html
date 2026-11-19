@@ -2412,6 +2412,8 @@ function renderDetail(){
   if (setLead) h += '<p class="linelead">'+setLead.totalWeightLb+' lb set</p>';
   h += '<p class="shelf price" style="font-size:2.1rem">'+cad(taxIn(p.price))+' <small>'+esc(taxInShort())+'</small></p>';
   h += '<p class="taxin" style="font-size:1.15rem"><span class="price" style="color:var(--text)">'+cad(p.price)+'</span> <small style="font-weight:600;color:var(--dim);font-size:.85rem">Shelf price, CAD</small></p>';
+ var priceNote = priceNoteText(p);
+ if (priceNote) h += '<p class="regline">'+esc(priceNote)+'</p>';
   if (unitLine) h += '<p class="unitline">'+esc(unitLine)+'</p>';
   else if (pricedLabel) h += '<p class="unitline">Price is for the '+esc(pricedLabel)+'.</p>';
   if (setLead) h += '<p class="unitline">About <span class="price">'+cad(setLead.perLbCents)+'</span> per lb (calculated)</p>';
@@ -2422,8 +2424,6 @@ function renderDetail(){
   var basisLineD = plateBasisLine(p);
   if (basisLineD) h += '<p class="entryline">'+basisLineD+'</p>';
   if (p.regular && p.regular>p.price) h += '<p class="regline">'+cad(p.regular-p.price)+' below its regular price of '+cad(p.regular)+'</p>';
- var priceNote = priceNoteText(p);
- if (priceNote) h += '<p class="regline">'+esc(priceNote)+'</p>';
   if (vline) h += '<p class="entryline">'+esc(vline)+'</p>';
   if (v) h += '<p style="margin:10px 0"><span class="vchip '+v.cls+'">'+v.label+'</span></p>';
   h += '<p style="margin:14px 0 0"><a class="btn primary block" href="'+esc(outboundUrl(p))+'" target="_blank" rel="noreferrer">View at '+esc(p.retailer)+' \u2197</a></p>';
