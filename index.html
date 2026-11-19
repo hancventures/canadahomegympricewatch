@@ -305,6 +305,14 @@
 .subchips{display:flex;flex-wrap:wrap;gap:.45rem;margin:.7rem 0 .2rem}
 .subchip{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:999px;padding:.45rem .9rem;font:inherit;font-weight:700;font-size:.88rem;cursor:pointer}
 .subchip:hover{background:#123a63}
+.retchips{display:flex;flex-wrap:wrap;gap:.45rem;margin:.8rem 0 .2rem}
+.retchip{background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:999px;padding:.45rem .9rem;font:inherit;font-weight:700;font-size:.8rem;cursor:pointer;white-space:nowrap}
+.retchip.current{background:var(--navy);color:#fff;border-color:var(--navy)}
+.rettools{display:flex;gap:1.25rem;flex-wrap:wrap;align-items:center;margin-top:.7rem}
+.rettools select{padding:9px;border:1px solid var(--border);border-radius:8px;font:inherit;background:#fff;color:var(--text)}
+.rettools label{font-weight:700}
+.stocktoggle{display:inline-flex;align-items:center;gap:.5rem;cursor:pointer}
+.stocktoggle input{width:1.25rem;height:1.25rem;min-height:0;margin:0}
 .fpanel{border:1.5px solid var(--line);border-radius:12px;padding:.9rem;margin-top:.8rem;background:var(--panel)}
 .fpanel h3{margin:.4rem 0 .4rem}
 .fpanel p.dim{font-size:.86rem}
@@ -563,7 +571,8 @@ var state = { view:"shop", cat:"all", query:"", sort:"default", detail:null, det
   tf:{maxHeight:"",maxWidth:"",maxDepth:"",maxPrice:"",minResistance:"",mustHave:[],inStockOnly:false,delivery:""}, tfOpen:false,
   cmpSort:"default", cmpHow:false, genHow:false, filtersOpen:false, fullCmp:false,
   compGroup:"", alertFocus:false, cardAlert:"", alertDone:{}, fitOpen:false,
-  fit:{ceilingIn:"",roomWidthFt:"",roomDepthFt:"",maxBudget:""}, manage:null };
+  fit:{ceilingIn:"",roomWidthFt:"",roomDepthFt:"",maxBudget:""}, manage:null,
+  retailerCat:null, retailerSort:"default", retailerStock:false };
 var prov = PROVINCES[6]; // Ontario default
 
 function bySlug(s){ for (var i=0;i<PRODUCTS.length;i++) if (PRODUCTS[i].slug===s) return PRODUCTS[i]; return null; }
@@ -898,7 +907,25 @@ function isCondLine(p){
   return !!entry && variantWeightOf(entry.label)!=null;
 }
 function isLineCard(p){ return isFixedLine(p) || isCondLine(p) || isPlateLine(p); }
-function lineRateOf(p){ if (isFixedLine(p)) return LINE_RATES[p.slug]||null; if (isPlateLine(p)) return PLATE_LINE_RATES[p.slug] ? {rate:PLATE_LINE_RATES[p.slug], note:""} : null; return null; }
+/* A plate line with no tabled rate can still carry its uniform rate in its own record (ported from the working app): the price per pound row states one flat rate ("$0.99 per lb", or "Flat $2.00 per lb at every recorded weight") only where the line's sizes share it. A row that prices sizes separately states no single rate, so none leads. The figure is the record's own stated rate, read from its row, never divided out of one size. */
+function plateFeatureRate(p){
+  var row = null;
+  (p.features||[]).forEach(function(x){ if (x.feature_key==="price_per_lb" && !row) row = x; });
+  if (!row || row.status!=="stated" || !row.value) return null;
+  var amounts = [], m, re = /\$(\d+(?:\.\d{1,2})?)/g;
+  while ((m = re.exec(row.value))) amounts.push(Math.round(parseFloat(m[1])*100));
+  if (amounts.length===1 && /per lb/i.test(row.value) && (/flat/i.test(row.value) || /^\s*\$[\d.]+\s+per lb\s*$/i.test(row.value.trim()))) return amounts[0];
+  return null;
+}
+function lineRateOf(p){
+  if (isFixedLine(p)) return LINE_RATES[p.slug]||null;
+  if (isPlateLine(p)){
+    if (PLATE_LINE_RATES[p.slug]) return {rate:PLATE_LINE_RATES[p.slug], note:""};
+    var fr = plateFeatureRate(p);
+    return fr!=null ? {rate:fr, note:""} : null;
+  }
+  return null;
+}
 function variantWeightOf(label){
   var m = /(\d+(?:\.\d+)?)\s*(?:to|-)\s*(\d+(?:\.\d+)?)\s*(lb|kg)/i.exec(label||"");
   if (m) return { lo:parseFloat(m[1]), hi:parseFloat(m[2]), unit:m[3].toLowerCase(), isSet:/set/i.test(label) };
@@ -1126,13 +1153,58 @@ function healthHtml(p){
 var PLATE_LINE_SLUGS = ["fitness-depot-olympic-standard-weight-plate","fitness-depot-olympic-rubber-coated-weight-plate","fitness-depot-regular-cast-iron-weight-plate","fitness-depot-cardio-pump-plate","fitness-depot-olympic-bumper-plate","fitness-depot-olympic-bumper-plate-competition","fitness-depot-olympic-bumper-plate-fleck","northern-fitness-rep-change-plates","northern-fitness-rep-calibrated-steel-plates","bells-of-steel-calibrated-powerlifting-plates-kg","bells-of-steel-out-of-spec-lb-competition-bumper-plates","altas-strength-weight-plate","lion-fitness-disque-metal-calibre-10-25-35-45-lb","lion-fitness-plaques-de-pare-chocs-en-caoutchouc","lion-fitness-rubber-grip-olympic-plates","altas-strength-homepro-dumbbells","treadmill-factory-xm-fitness-crumb-rubber-bumper-plates","treadmill-factory-ironax-athletic-series-commercial-bumper-plates","treadmill-factory-premium-virgin-rubber-olympic-plates","treadmill-factory-nike-grind-bumper-plates","treadmill-factory-nike-grind-bumper-plates-solar-haze","treadmill-factory-nike-rubber-bumper-plates-black-white","treadmill-factory-nike-grind-change-plates-wolf-grey-particle","treadmill-factory-nike-change-plates","treadmill-factory-nike-strength-pro-urethane-plates-black-white","treadmill-factory-centr-x-hyrox-competition-edge-bumper-plate","treadmill-factory-mega-fitness-standard-steel-weight-plates","treadmill-factory-element-fitness-onyx-virgin-rubber-olympic-plates"];
 var PLATE_LINE_RATES = {"fitness-depot-olympic-standard-weight-plate":68,"fitness-depot-olympic-rubber-coated-weight-plate":80,"fitness-depot-regular-cast-iron-weight-plate":110,"fitness-depot-cardio-pump-plate":150,"fitness-depot-olympic-bumper-plate-fleck":200,"altas-strength-weight-plate":300,"lion-fitness-disque-metal-calibre-10-25-35-45-lb":400,"lion-fitness-plaques-de-pare-chocs-en-caoutchouc":180,"lion-fitness-rubber-grip-olympic-plates":150,"treadmill-factory-ironax-athletic-series-commercial-bumper-plates":149,"treadmill-factory-premium-virgin-rubber-olympic-plates":129,"treadmill-factory-element-fitness-onyx-virgin-rubber-olympic-plates":149,"treadmill-factory-mega-fitness-standard-steel-weight-plates":99};
 var PLATE_SET_TOTAL_WEIGHTS = {"bells-of-steel-dead-bounce-bumper-plates":260,"gorila-ox-bumper-plates":160,"altas-strength-5lb-35lb-weight-plates-combo":150,"altas-strength-5lb-45lb-weight-plates-combo":240};
-function isPlateLine(p){ return PLATE_LINE_SLUGS.indexOf(p.slug)>=0; }
+function plateVariantWeightOf(label){
+  var m = /^\s*(\d+(?:\.\d+)?)\s*(lb|kg)(?:\s+pair)?\s*$/i.exec(label||"");
+  if (!m) return null;
+  var value = parseFloat(m[1]);
+  return isFinite(value) ? { value:value, unit:m[2].toLowerCase() } : null;
+}
+function isPlateLine(p){
+  if (PLATE_LINE_SLUGS.indexOf(p.slug)>=0) return true;
+  /* Plate line completion (Nov 18, 2026, ported from the working app): any other Weight plates group record sold by priced weight variants is a line on the same pattern, at least two recorded weight variants with the entry variant among them, so a variant priced plate line reads as a line in every list it appears in (retailer view, category view, search results), never as a lone entry variant card. Single variant plate records carry no such variants and keep their ordinary card treatment exactly. */
+  if (!isPlateGroup(p)) return false;
+  var vs = p.variants||[];
+  var weights = vs.filter(function(v){ return plateVariantWeightOf(v.label)!=null; });
+  if (weights.length<2) return false;
+  var entry = null;
+  vs.forEach(function(v){ if (v.price===p.price && !entry) entry = v; });
+  if (!entry) entry = vs[0];
+  return !!entry && plateVariantWeightOf(entry.label)!=null;
+}
 function isPlateGroup(p){ return p.pub==="staples" && p.group==="Weight plates"; }
 function plateSetLead(p){ var w = PLATE_SET_TOTAL_WEIGHTS[p.slug]; if (!w) return null; return { totalWeightLb:w, perLbCents: Math.round(p.price/w) }; }
 function sortPlateItems(items){
   var rated = items.filter(function(p){ return PLATE_LINE_RATES[p.slug]; }).sort(function(a,b){ return PLATE_LINE_RATES[a.slug]-PLATE_LINE_RATES[b.slug]; });
   var rest = items.filter(function(p){ return !PLATE_LINE_RATES[p.slug]; });
   return rated.concat(rest);
+}
+/* Plate price basis (Nov 18, 2026, ported from the working app): where a weight plate record states whether its tracked price buys one plate or a pair, the price line says so plainly, "Price is for one plate." or "Price is for a pair.", on the product card and at the top of the product page. The statement comes only from the record's own fields: its Sold as row, its range row's sold as wording, the entry variant's own label, or its Included line opening with the one plate wording. A record whose price buys a set states a set, not a pair, and carries no line here; a record that states neither carries no line either. Nothing is inferred from a price or a weight alone. */
+function platePriceBasis(p){
+  if (!isPlateGroup(p)) return null;
+  if (plateSetLead(p)) return null;
+  function stated(key){ var f = null; (p.features||[]).forEach(function(x){ if (x.feature_key===key && !f) f = x; }); return (f && f.status==="stated" && f.value && f.value.trim()) ? f.value.trim() : null; }
+  function statedText(key){ var f = null; (p.features||[]).forEach(function(x){ if (x.feature_key===key && !f) f = x; }); return (f && f.status==="stated") ? ((f.value||"")+" "+(f.detail||"")).trim() : null; }
+  var soldAs = stated("plate_sold_as");
+  if (soldAs){
+    if (/^set\b/i.test(soldAs) || /set of pairs/i.test(soldAs)) return null;
+    if (/pairs?\s+and\s+sets/i.test(soldAs)){ /* Sold both ways: the tracked entry variant decides below. */ }
+    else if (/sold as pairs|sold in pairs|\bpairs?\b/i.test(soldAs)) return "pair";
+    else if (/one plate|sold individually|individually|sold separately|single/i.test(soldAs)) return "single";
+  }
+  var range = stated("plate_range");
+  if (range && /sold as pairs|sold in pairs/i.test(range)) return "pair";
+  var entry = null;
+  (p.variants||[]).forEach(function(v){ if (v.price===p.price && !entry) entry = v; });
+  if (!entry) entry = (p.variants||[])[0];
+  if (entry && /\bpair\b/i.test(entry.label)) return "pair";
+  var included = statedText("included_attachments");
+  if (included && /one plate per purchase/i.test(included)) return "single";
+  if (included && /\bone pair\b/i.test(included)) return "pair";
+  return null;
+}
+function plateBasisLine(p){
+  var b = platePriceBasis(p);
+  return b ? (b==="pair" ? "Price is for a pair." : "Price is for one plate.") : null;
 }
 function rangeNum(n){ return String(Math.round(n*100)/100); }
 function flooringUnitLine(p){
@@ -1303,6 +1375,8 @@ function cardHtml(p){
   }
   h += deliveryHighlightHtml(p);
   if (!pricedLabel && !isLineCard(p) && entry && pricedVariantExclusion(p)==="weight_plate") h += '<p class="entryline">Price is for the '+esc(entry)+'.</p>';
+  var basisLine = plateBasisLine(p);
+  if (basisLine) h += '<p class="entryline">'+basisLine+'</p>';
   if (p.regular && p.regular>p.price) h += '<p class="regline">'+cad(p.regular-p.price)+' below its regular price of '+cad(p.regular)+'</p>';
   if (vline) h += '<p class="entryline">'+esc(vline)+'</p>';
   if (p.checkCount>0) h += '<p class="lowestline">Lowest seen <span class="price"><b>'+cad(p.lowest)+'</b></span> in our checks</p>';
@@ -1909,13 +1983,61 @@ function renderDrops(){
   app.innerHTML = h;
 }
 function renderRetailer(){
-  var list = defaultSort(PRODUCTS.filter(function(p){ return p.retailer===state.retailer; }));
+  /* Retailer view organization (Nov 18, 2026, ported from the working app): the page works the way the rest of the site already does. Category chips with counts across the top narrow the list to one of the categories this retailer actually has products in, with an All chip back to the full list. The standard sort control orders the list, with lowest tax in price first staying the default. The search box at the top of the view scopes to this retailer (its results replace the list below), with a Back control and a one tap Search the whole catalogue escape, and the in stock only toggle applies inside the view through the same light filter the category pages use, Cannot confirm section included. */
+  var ret = state.retailer;
+  var all = PRODUCTS.filter(function(p){ return p.retailer===ret; });
+  var cats = CATS.filter(function(c){ return all.some(function(p){ return p.pub===c.id; }); });
+  var activeCat = null;
+  cats.forEach(function(c){ if (c.id===state.retailerCat) activeCat = c.id; });
+  var catItems = activeCat ? all.filter(function(p){ return p.pub===activeCat; }) : all;
+  var searching = state.query.trim().length>0;
+  var stockF = {maxPrice:"",inStockOnly:true,maxHeight:"",minThickness:"",delivery:""};
+  function listHtml(list){
+    var sorted = applySort(list, state.retailerSort);
+    if (!state.retailerStock) return gridHtml(sorted);
+    var part = partitionBy(sorted, evaluateLightFilters, stockF);
+    var out = '<p class="fsum" role="status">'+part.matched.length+' of '+sorted.length+' match \u00b7 '+part.unknown.length+' cannot be confirmed \u00b7 '+part.out+' filtered out</p>';
+    if (part.matched.length) out += gridHtml(part.matched);
+    else if (!part.unknown.length) out += '<div class="panel"><p><b>No products match all the set filters.</b></p><p class="dim">Loosen a filter or clear them all to see the full list.</p></div>';
+    out += cannotConfirmHtml(part.unknown, sorted.length);
+    return out;
+  }
   var h = shopSearchHtml();
-  h += '<div class="panel"><h2>'+esc(state.retailer)+'</h2>';
-  h += '<p class="dim">'+list.length+' product'+(list.length===1?"":"s")+' tracked from this Canadian retailer, prices in CAD with '+esc(taxLabel().toLowerCase())+'.</p>';
+  h += '<div class="panel"><h2>'+esc(ret)+'</h2>';
+  h += '<p class="dim">'+all.length+' product'+(all.length===1?"":"s")+' tracked from '+esc(ret)+' on this watch'+(cats.length ? ', across '+cats.map(function(c){ return c.name; }).join(", ") : '')+'. Prices in CAD, tax in total in '+esc(prov.name)+' with '+esc(prov.label)+'.</p>';
+  h += '<p class="dim">'+(state.retailerSort==="default" ? "Shown lowest tax in price first." : "Sorted with the control below; lowest tax in price first is the default.")+'</p>';
   h += '<p><button type="button" class="btn" data-clearretailer="1">Show all retailers</button></p></div>';
-  h += gridHtml(list);
+  if (cats.length>=2){
+    h += '<nav class="retchips" aria-label="Categories at '+esc(ret)+'">';
+    h += '<button type="button" class="retchip'+(activeCat==null?" current":"")+'" data-retailercat="" aria-pressed="'+(activeCat==null)+'" aria-label="All products at '+esc(ret)+', '+all.length+' products">All \u00b7 '+all.length+'</button>';
+    cats.forEach(function(c){
+      var n = all.filter(function(p){ return p.pub===c.id; }).length;
+      var cur = activeCat===c.id;
+      h += '<button type="button" class="retchip'+(cur?" current":"")+'" data-retailercat="'+c.id+'" aria-pressed="'+cur+'" aria-label="'+esc(c.name)+' at '+esc(ret)+', '+n+' products">'+esc(c.name)+' \u00b7 '+n+'</button>';
+    });
+    h += '</nav>';
+  }
+  h += '<div class="rettools"><label>Sort by <select id="retailerSortSel" aria-label="Sort by">'+sortOptionsHtml(state.retailerSort, false)+'</select></label>'
+     + '<label class="stocktoggle"><input type="checkbox" id="retailerStockToggle" aria-label="In stock only"'+(state.retailerStock?' checked':'')+' /> In stock only</label></div>';
+  if (searching){
+    var q = state.query.trim();
+    var scoped = catItems.filter(function(p){ return productMatchesSearch(p, state.query); });
+    h += '<p style="margin:12px 0"><button type="button" class="btn backbtn" data-retailerback="1" aria-label="Back to all products at '+esc(ret)+'">\u2190 Back to '+esc(ret)+'</button> <button type="button" class="btn" data-searchall="1" aria-label="Search the whole catalogue">Search the whole catalogue</button></p>';
+    h += '<h2 class="viewtitle">'+scoped.length+' result'+(scoped.length===1?"":"s")+' at '+esc(ret)+' for \u201c'+esc(q)+'\u201d</h2>';
+    if (scoped.length) h += listHtml(scoped);
+    else h += '<div class="panel"><p><b>Nothing tracked from '+esc(ret)+' matches \u201c'+esc(q)+'\u201d.</b></p><p class="dim">Clear the search to see everything tracked from '+esc(ret)+', or search the whole catalogue with the button above.</p></div>';
+  } else {
+    if (activeCat) h += '<p class="fsum" role="status" style="margin-top:10px">Showing '+catItems.length+' product'+(catItems.length===1?"":"s")+' in '+esc(catName(activeCat))+' at '+esc(ret)+'. <button type="button" class="name-link" data-retailercat="" aria-label="Show all products at '+esc(ret)+'">Show all at '+esc(ret)+'</button></p>';
+    h += listHtml(catItems);
+  }
   app.innerHTML = h;
+  bindRetailerTools();
+}
+function bindRetailerTools(){
+  var sel = document.getElementById("retailerSortSel");
+  if (sel) sel.addEventListener("change", function(e){ state.retailerSort = e.target.value; render(); });
+  var tog = document.getElementById("retailerStockToggle");
+  if (tog) tog.addEventListener("change", function(){ state.retailerStock = tog.checked; render(); });
 }
 function renderSearch(){
   var list = defaultSort(PRODUCTS.filter(function(p){ return productMatchesSearch(p, state.query); }));
@@ -2288,6 +2410,8 @@ function renderDetail(){
   h += '<p class="dim recorded-terms" style="margin-top:10px;font-size:.88rem;line-height:1.5">Recorded delivery terms: '+esc((p.ship||"").trim() ? p.ship : "No delivery terms recorded for this item.")+'</p>';
   h += '<div class="alert-callout"><p><b>Watching this price?</b></p><p class="dim" style="margin-top:4px">Alerts run by email for now. The signup below opens your mail app with the alert filled in, and sending that email sets the alert up the same day. No account, no password.</p><p style="margin-top:8px"><button type="button" class="btn primary" data-alertscroll="1" aria-label="Go to the price alert signup for '+esc(p.name)+'">Set a price alert</button></p></div>';
   if (!pricedLabel && !isLineCard(p) && entry && pricedVariantExclusion(p)==="weight_plate") h += '<p class="entryline">Price is for the '+esc(entry)+'.</p>';
+  var basisLineD = plateBasisLine(p);
+  if (basisLineD) h += '<p class="entryline">'+basisLineD+'</p>';
   if (p.regular && p.regular>p.price) h += '<p class="regline">'+cad(p.regular-p.price)+' below its regular price of '+cad(p.regular)+'</p>';
   if (vline) h += '<p class="entryline">'+esc(vline)+'</p>';
   if (v) h += '<p style="margin:10px 0"><span class="vchip '+v.cls+'">'+v.label+'</span></p>';
@@ -2842,14 +2966,17 @@ window.addEventListener("popstate", function(){ applyHashToState(); });
 window.addEventListener("hashchange", function(){ applyHashToState(); });
 
 document.addEventListener("click", function(e){
-  var t = e.target.closest("[data-brand],[data-nav],[data-open],[data-tray],[data-cat],[data-guide],[data-backpill],[data-retailer],[data-clearretailer],[data-clearsearch],[data-subcat],[data-fchip],[data-fdelivery],[data-fstock],[data-fclear],[data-filters],[data-tfdelivery],[data-tfstock],[data-musthave],[data-cmpHow],[data-genHow],[data-cmpPageHow],[data-fullcmp],[data-cardalert],[data-alertscroll],[data-openalert],[data-sidebyside],[data-fit],[data-fitclear]");
+  var t = e.target.closest("[data-brand],[data-nav],[data-open],[data-tray],[data-cat],[data-guide],[data-backpill],[data-retailer],[data-clearretailer],[data-clearsearch],[data-retailercat],[data-retailerback],[data-searchall],[data-subcat],[data-fchip],[data-fdelivery],[data-fstock],[data-fclear],[data-filters],[data-tfdelivery],[data-tfstock],[data-musthave],[data-cmpHow],[data-genHow],[data-cmpPageHow],[data-fullcmp],[data-cardalert],[data-alertscroll],[data-openalert],[data-sidebyside],[data-fit],[data-fitclear]");
   if (!t) return;
   if (t.hasAttribute("data-brand")){ e.preventDefault(); state.view = "shop"; state.cat = "all"; state.query = ""; state.retailer = null; state.guide = null; state.detail = null; syncProductHash(true); render(); window.scrollTo(0,0); }
   else if (t.hasAttribute("data-fullcmp")){ state.fullCmp = true; render(); }
   else if (t.hasAttribute("data-backpill")){ doBack(); }
-  else if (t.hasAttribute("data-retailer")){ state.retailer = t.getAttribute("data-retailer"); state.cat = "all"; state.query = ""; var hqR = document.getElementById("hq"); if (hqR) hqR.value = ""; state.view = "shop"; state.detail = null; state.guide = null; syncProductHash(true); render(); window.scrollTo(0,0); }
-  else if (t.hasAttribute("data-clearretailer")){ state.retailer = null; render(); }
+  else if (t.hasAttribute("data-retailer")){ state.retailer = t.getAttribute("data-retailer"); state.retailerCat = null; state.retailerSort = "default"; state.retailerStock = false; state.cat = "all"; state.query = ""; var hqR = document.getElementById("hq"); if (hqR) hqR.value = ""; state.view = "shop"; state.detail = null; state.guide = null; syncProductHash(true); render(); window.scrollTo(0,0); }
+  else if (t.hasAttribute("data-clearretailer")){ state.retailer = null; state.retailerCat = null; render(); }
   else if (t.hasAttribute("data-clearsearch")){ state.query = ""; var hqC = document.getElementById("hq"); if (hqC) hqC.value = ""; render(); window.scrollTo(0,0); }
+  else if (t.hasAttribute("data-retailercat")){ var rc = t.getAttribute("data-retailercat"); state.retailerCat = (rc && state.retailerCat!==rc) ? rc : null; render(); }
+  else if (t.hasAttribute("data-retailerback")){ state.query = ""; var hqB = document.getElementById("hq"); if (hqB) hqB.value = ""; render(); }
+  else if (t.hasAttribute("data-searchall")){ state.retailer = null; state.retailerCat = null; render(); window.scrollTo(0,0); }
   else if (t.hasAttribute("data-nav")){ go(t.getAttribute("data-nav")); }
   else if (t.hasAttribute("data-open")){ state.detailFrom = state.view==="compare" ? "compare" : (state.view==="comparisons" ? "comparisons" : (state.view==="drops" ? "drops" : "shop")); state.detail = t.getAttribute("data-open"); state.view="detail"; syncProductHash(true); render(); window.scrollTo(0,0); }
   else if (t.hasAttribute("data-tray")){
@@ -2870,7 +2997,7 @@ document.addEventListener("click", function(e){
     render();
   }
   else if (t.hasAttribute("data-cat")){
-    state.cat = t.getAttribute("data-cat"); state.retailer = null; state.sort = "default";
+    state.cat = t.getAttribute("data-cat"); state.retailer = null; state.retailerCat = null; state.query = ""; var hqCat = document.getElementById("hq"); if (hqCat) hqCat.value = ""; state.sort = "default";
     state.light = {maxPrice:"",inStockOnly:false,maxHeight:"",minThickness:"",delivery:""};
     state.tf = {maxHeight:"",maxWidth:"",maxDepth:"",maxPrice:"",minResistance:"",mustHave:[],inStockOnly:false,delivery:""};
     state.filtersOpen = false;
@@ -2997,7 +3124,7 @@ document.addEventListener("input", function(e){
   var inp = e.target;
   if (!inp || inp.id!=="hq") return;
   state.query = inp.value;
-  state.retailer = null;
+  /* Search scoping (Nov 18, 2026, ported from the working app): while a retailer view is open, the search scopes to that retailer; the retailer is left in place here, and the Search the whole catalogue control in the retailer view is what clears it. */
   if (state.view!=="shop"){ state.view="shop"; state.detail=null; state.guide=null; syncProductHash(true); }
   render();
   var nhq = document.getElementById("hq");
