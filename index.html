@@ -1121,6 +1121,14 @@ function photoShowsText(p, short){
   if (entry) t += " The tracked price is for the " + entry + (/^\d+(?:\.\d+)?\s*(?:lb|kg)$/i.test(entry) ? " size" : "") + ".";
   return t;
 }
+/* Price note, Nov 18, 2026: a single listing whose price is far above the regular price the retailer states; shown exactly as listed. */
+var PRICE_NOTES = {
+  "great-life-fitness-spirit-mt200-bi-direction-treadmill": "This price is far above the regular price the retailer states for this machine and looks like an error in the store's listing. It is shown exactly as listed, recorded Nov 18, 2026."
+};
+function priceNoteText(p){
+  var s = PRICE_NOTES[p.slug]; if (!s) return "";
+  return s;
+}
 function photoCaptionHtml(p){
   if (!p.photo) return '<p class="photocap">No photo on file for this listing yet. The retailer\u2019s page has the product photos.</p>';
   var h = '<p class="photocap">Photo from <a href="'+esc(p.retailer==="Altas Strength" ? outboundUrl(p) : (p.imgSource||p.url))+'" target="_blank" rel="noreferrer">the retailer\u2019s listing</a>';
@@ -2414,6 +2422,8 @@ function renderDetail(){
   var basisLineD = plateBasisLine(p);
   if (basisLineD) h += '<p class="entryline">'+basisLineD+'</p>';
   if (p.regular && p.regular>p.price) h += '<p class="regline">'+cad(p.regular-p.price)+' below its regular price of '+cad(p.regular)+'</p>';
+ var priceNote = priceNoteText(p);
+ if (priceNote) h += '<p class="regline">'+esc(priceNote)+'</p>';
   if (vline) h += '<p class="entryline">'+esc(vline)+'</p>';
   if (v) h += '<p style="margin:10px 0"><span class="vchip '+v.cls+'">'+v.label+'</span></p>';
   h += '<p style="margin:14px 0 0"><a class="btn primary block" href="'+esc(outboundUrl(p))+'" target="_blank" rel="noreferrer">View at '+esc(p.retailer)+' \u2197</a></p>';
