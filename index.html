@@ -1683,7 +1683,16 @@ function cardHtml(p){
   var setLead = plateSetLead(p);
   var unitLine = p.pub==="flooring" ? flooringUnitLine(p) : null;
   var pricedLabel = pricedVariantLabel(p);
-  if (isLineCard(p)) h += lineLeadHtml(p);
+  /* Headline price guarantee (Nov 20, 2026): the line card lead is
+     used only when it actually carries this product's own price. A
+     product classed as a fixed line by its group label alone, with
+     no recorded per pound rate and no weight labelled variants (a
+     multi pair set whose only variants are a rack choice, for one),
+     gives lineLeadHtml nothing to lead with, so it returns empty;
+     the card then falls back to the ordinary shelf price block
+     below, so no card can render without its headline price. */
+  var lineHtml = isLineCard(p) ? lineLeadHtml(p) : "";
+  if (lineHtml && lineHtml.indexOf(cad(p.price))>=0) h += lineHtml;
   else {
     if (setLead) h += '<p class="linelead">'+setLead.totalWeightLb+' lb set</p>';
     h += '<div class="cardprice"><div><p class="cp-tax price">'+cad(p.price)+'</p><p class="cp-lab">Shelf price, CAD</p></div></div>';
