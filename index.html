@@ -370,6 +370,10 @@ dl.facts .pconfirmed{display:block;margin-top:2px;font-size:.82rem}
   .cmp-step button[disabled]{opacity:.4}
   .cmp-pos{font-size:.78rem;font-weight:600;color:var(--dim)}
   .cmp-note-line{font-size:.8rem;color:var(--dim);line-height:1.5;margin:10px 0 0}
+  .cmp-best{background:var(--surface-alt);box-shadow:inset 0 0 0 1px var(--line)}
+  .cmp-cats{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+  .cmp-cat{border:1px solid var(--border);background:var(--surface);border-radius:999px;padding:6px 12px;font:inherit;font-size:.8rem;font-weight:700;cursor:pointer;color:var(--text)}
+  .cmp-cat.on{background:var(--navy);border-color:var(--navy);color:#fff}
   .cmp-miss{display:block;font-size:.72rem;font-weight:600;color:#b45309;margin-top:2px}
   .cmp-record{display:block;font-size:.72rem;font-weight:600;color:var(--dim);margin-top:2px}
   .cmp-lead{display:block;font-size:.78rem;font-weight:700;color:var(--text);margin-top:2px}
@@ -491,7 +495,6 @@ button.wch-thumb{border:0;padding:0;cursor:pointer;min-height:0}
     <nav class="main" aria-label="Main">
       <button type="button" data-nav="shop">Shop</button>
       <button type="button" data-nav="compare">Compare</button>
-      <button type="button" data-nav="comparisons">Comparisons</button>
       <button type="button" data-nav="drops">Drops</button>
       <button type="button" data-nav="guides">Guides</button>
       <button type="button" data-nav="how">How this works</button>
@@ -603,7 +606,7 @@ var RETAILERS = retailersList();
 var state = { view:"shop", cat:"all", query:"", sort:"default", detail:null, detailFrom:"shop", retailer:null, guide:null, tray:[], trayNote:"", roomSqft:200,
   light:{maxPrice:"",inStockOnly:false,maxHeight:"",minThickness:"",delivery:""}, lightOpen:false,
   tf:{maxHeight:"",maxWidth:"",maxDepth:"",maxPrice:"",minResistance:"",mustHave:[],inStockOnly:false,delivery:""}, tfOpen:false,
-  cmpSort:"default", cmpHow:false, genHow:false, filtersOpen:false, fullCmp:false, cmpPicks:null, cmpDiff:{}, cmpCol:{},
+  cmpSort:"default", cmpHow:false, genHow:false, filtersOpen:false, fullCmp:false, cmpPicks:null, cmpDiff:{}, cmpCol:{}, cmpPageHow:false, cmpExampleCat:"trainers", genPicks:null,
   compGroup:"", alertFocus:false, cardAlert:"", alertDone:{}, fitOpen:false,
   fit:{ceilingIn:"",roomWidthFt:"",roomDepthFt:"",maxBudget:""}, manage:null,
   retailerCat:null, retailerSort:"default", retailerStock:false };
@@ -1741,203 +1744,7 @@ function compGroupKeyOf(p){
   if (p.pub==="attachments" && p.machineType) return "attachments:"+p.machineType;
   return p.pub;
 }
-function compGroupTitleOf(p, key){
-  var i = key.indexOf(":");
-  if (i>=0) return catName(p.pub)+": "+key.slice(i+1);
-  return catName(p.pub);
-}
-function higherPricedOf(a, b){
-  if (a.regular!=null && b.regular!=null && a.regular!==b.regular) return a.regular>b.regular ? {hi:a, lo:b, byRegular:true} : {hi:b, lo:a, byRegular:true};
-  if (a.price!==b.price) return a.price>b.price ? {hi:a, lo:b, byRegular:false} : {hi:b, lo:a, byRegular:false};
-  var ar = a.regular || 0, br = b.regular || 0;
-  if (ar!==br) return ar>br ? {hi:a, lo:b, byRegular:(a.regular!=null && b.regular!=null)} : {hi:b, lo:a, byRegular:(a.regular!=null && b.regular!=null)};
-  return {hi:a, lo:b, byRegular:false};
-}
-function matchupAddsList(hi, lo){
-  var adds = [];
-  var loByKey = {};
-  (lo.features || []).forEach(function(f){ loByKey[f.feature_key] = f; });
-  var rows = (hi.features || []).filter(function(f){ return f.feature_key!=="delivery"; }).slice().sort(function(x, y){ return x.sort_order - y.sort_order; });
-  rows.forEach(function(f){
-    var other = loByKey[f.feature_key];
-    if (f.kind==="spec"){
-      if (f.status!=="stated") return;
-      if (!other || other.status!=="stated") adds.push(f.label+": "+imperializeSpecText(String(f.value || "").trim(), f.feature_key));
-      else if (String(other.value || "").trim()!==String(f.value || "").trim()) adds.push(f.label+": "+imperializeSpecText(String(f.value || "").trim(), f.feature_key));
-    } else if (f.status==="included"){
-      if (!other || other.status!=="included") adds.push(f.label);
-    }
-  });
-  return adds;
-}
-function matchupAddsLine(a, b){
-  var hp = higherPricedOf(a, b), hi = hp.hi, lo = hp.lo;
-  var adds = matchupAddsList(hi, lo);
-  var addsText = adds.length ? ("What "+hi.name+" adds over "+lo.name+": "+adds.join("; ")+".") : ("The two records state no spec or included feature for "+hi.name+" that they do not also state for "+lo.name+".");
-  var shelfDiff = hi.price - lo.price;
-  var taxDiff = taxIn(hi.price) - taxIn(lo.price);
-  var priceText;
-  if (shelfDiff<0) priceText = hi.name+" currently costs less than "+lo.name+": "+cad(-shelfDiff)+" less on the shelf, "+cad(-taxDiff)+" less tax in in "+prov.name+".";
-  else if (shelfDiff>0) priceText = hi.name+" costs "+cad(shelfDiff)+" more on the shelf than "+lo.name+", "+cad(taxDiff)+" more tax in in "+prov.name+".";
-  else priceText = "The two are the same price today: "+cad(hi.price)+" on the shelf, "+cad(taxIn(hi.price))+" tax in in "+prov.name+".";
-  return hp.byRegular ? (addsText+" Judged on the stated regular prices, "+hi.name+" is the higher priced machine of the two. "+priceText) : (addsText+" "+priceText);
-}
-function weightRangeLb(p){
-  var text = recordedWeightRangeText(p);
-  if (!text) return null;
-  var range = parseWeightRange(text);
-  if (!range) return null;
-  var conv = function(v){ return range.unit==="kg" ? v*2.20462 : v; };
-  var widthLb = conv(range.max) - conv(range.min);
-  if (!(widthLb>0)) return null;
-  return { widthLb: widthLb, text: text };
-}
-function pricePerSqft(p){ return p.coverage ? Math.round(p.price/p.coverage) : null; }
-function thirdMetricCandidates(pub){
-  var height = { label:"Shortest", ascending:true,
-    value:function(p){ return p.heightIn!=null ? p.heightIn : null; },
-    text:function(p){ return formatImperialInches(p.heightIn || 0)+" high"; },
-    diffText:function(a, b){ return a.name+" is "+formatImperialInches(Math.abs((a.heightIn || 0)-(b.heightIn || 0)))+" shorter than "+b.name+", for a low ceiling. A machine ranks here only where its record states a height."; } };
-  var footprint = { label:"Smallest footprint", ascending:true,
-    value:function(p){ return p.footprint!=null ? p.footprint : null; },
-    text:function(p){ return weightNum(p.footprint || 0)+" sq ft footprint (calculated)"; },
-    diffText:function(a, b){ return a.name+" takes "+weightNum(Math.abs((a.footprint || 0)-(b.footprint || 0)))+" sq ft less floor than "+b.name+", worked out from the recorded dimensions."; } };
-  var resistance = { label:"Most resistance per side", ascending:false,
-    value:function(p){ return p.resistance!=null ? p.resistance : null; },
-    text:function(p){ return weightNum(p.resistance || 0)+" lb per side (calculated)"; },
-    diffText:function(a, b){ return a.name+" works out to "+weightNum(Math.abs((a.resistance || 0)-(b.resistance || 0)))+" lb more per side than "+b.name+", calculated from the stated stack and the stated ratio."; } };
-  var range = { label:"Widest weight range", ascending:false,
-    value:function(p){ var w = weightRangeLb(p); return w ? w.widthLb : null; },
-    text:function(p){ var w = weightRangeLb(p); return w ? w.text : ""; },
-    diffText:function(a, b){ var wa = weightRangeLb(a), wb = weightRangeLb(b); return a.name+" covers a wider recorded weight range than "+b.name+": "+(wa ? wa.text : "")+" against "+(wb ? wb.text : "")+"."; } };
-  var perSqft = { label:"Lowest price per square foot", ascending:true,
-    value:function(p){ return pricePerSqft(p); },
-    text:function(p){ return cad(pricePerSqft(p) || 0)+" per sq ft (calculated)"; },
-    diffText:function(a, b){ return a.name+" works out to "+cad(Math.abs((pricePerSqft(a) || 0)-(pricePerSqft(b) || 0)))+" less per square foot than "+b.name+", from the recorded price and coverage."; } };
-  if (pub==="trainers" || pub==="racks" || pub==="leg_machines") return [height, footprint, resistance];
-  if (pub==="cardio") return [footprint, height];
-  if (pub==="weights") return [range];
-  if (pub==="flooring") return [perSqft, height];
-  return [height, footprint, resistance];
-}
-function buildCompGroups(){
-  var byKey = {}, orderKeys = [];
-  PRODUCTS.forEach(function(p){
-    var key = compGroupKeyOf(p);
-    if (!byKey[key]){ byKey[key] = []; orderKeys.push(key); }
-    byKey[key].push(p);
-  });
-  var groups = [];
-  orderKeys.forEach(function(key){
-    var items = byKey[key];
-    if (items.length<2) return;
-    var first = items[0];
-    var byPrice = items.slice().sort(function(a, b){ return taxIn(a.price)-taxIn(b.price); });
-    var matchups = [];
-    var usedPairs = {};
-    function pairKey(a, b){ return [a.slug, b.slug].sort().join("|"); }
-    function priceFigure(p){ return cad(p.price)+" shelf \u00b7 "+cad(taxIn(p.price))+" tax in"; }
-    var lowA = byPrice[0], lowB = byPrice[1];
-    if (lowA && lowB){
-      matchups.push({ kind:"lowest", label:"Lowest priced", pair:[lowA, lowB], figure:priceFigure, detail: lowA.name+" is "+cad(taxIn(lowB.price)-taxIn(lowA.price))+" less tax in than "+lowB.name+" in "+prov.name+". These are the two lowest tax in totals in this group.", addsLine: matchupAddsLine(lowA, lowB) });
-      usedPairs[pairKey(lowA, lowB)] = 1;
-    }
-    var highA = byPrice[byPrice.length-1], highB = byPrice[byPrice.length-2];
-    if (highA && highB && !usedPairs[pairKey(highA, highB)]){
-      matchups.push({ kind:"highest", label:"High end", pair:[highA, highB], figure:priceFigure, detail: highA.name+" is "+cad(taxIn(highA.price)-taxIn(highB.price))+" more tax in than "+highB.name+" in "+prov.name+". These are the two highest tax in totals in this group.", addsLine: matchupAddsLine(highA, highB) });
-      usedPairs[pairKey(highA, highB)] = 1;
-    }
-    var cands = thirdMetricCandidates(first.pub);
-    for (var ci=0; ci<cands.length; ci++){
-      var metric = cands[ci];
-      var stated = items.filter(function(p){ return metric.value(p)!=null; });
-      if (stated.length<2) continue;
-      var sorted = stated.slice().sort(function(a, b){ var av = metric.value(a) || 0, bv = metric.value(b) || 0; return metric.ascending ? av-bv : bv-av; });
-      var a = sorted[0], b = sorted[1];
-      if (!a || !b) continue;
-      if (usedPairs[pairKey(a, b)]) continue;
-      matchups.push({ kind:"third", label:metric.label, pair:[a, b], figure:metric.text, detail:metric.diffText(a, b), addsLine: matchupAddsLine(a, b) });
-      break;
-    }
-    if (matchups.length) groups.push({ key:key, title:compGroupTitleOf(first, key), items:items, matchups:matchups });
-  });
-  function ord(g){
-    if (g.key==="trainers:all in one trainer") return 0;
-    if (g.key.indexOf("trainers")===0) return 1;
-    if (g.key.indexOf("racks")===0) return 2;
-    if (g.key.indexOf("cardio")===0) return 3;
-    if (g.key.indexOf("leg_machines")===0) return 4;
-    if (g.key.indexOf("weights")===0) return 5;
-    if (g.key.indexOf("staples")===0) return 6;
-    if (g.key.indexOf("flooring")===0) return 7;
-    return 8;
-  }
-  groups.sort(function(a, b){ var d = ord(a)-ord(b); return d!==0 ? d : a.title.localeCompare(b.title); });
-  return groups;
-}
-function matchupCardHtml(m){
-  var a = m.pair[0], b = m.pair[1];
-  var h = '<article class="matchup" aria-label="'+esc(m.label)+': '+esc(a.name)+' versus '+esc(b.name)+'">';
-  h += '<span class="mlabel">'+esc(m.label)+'</span>';
-  h += '<div class="mphotos">';
-  m.pair.forEach(function(p){
-    h += '<div>'+photoFrame(p, true);
-    var ps = photoShowsText(p, true);
-    if (ps) h += '<p class="photoshow">'+esc(ps)+'</p>';
-    h += '</div>';
-  });
-  h += '</div>';
-  h += '<h4>'+esc(a.name)+' <span class="vs">vs</span> '+esc(b.name)+'</h4>';
-  h += '<div class="mpair">';
-  m.pair.forEach(function(p){
-    h += '<div class="mprod"><p class="mname">'+esc(p.name)+'</p><div style="margin-top:4px">'+retailerChip(p)+'</div>';
-    h += '<p class="mprice price">'+cad(p.price)+'</p>';
-    h += '<p class="mtax">'+cad(taxIn(p.price))+' tax in \u00b7 '+esc(taxInShort())+'</p>';
-    h += '<p class="mfig">'+esc(m.figure(p))+'</p>';
-    h += '<p class="mstock">Stock: '+esc(p.stock || "Not stated")+' \u00b7 Checked '+fmtDate(p.checked)+'</p>';
-    h += '<div class="mbtns"><button type="button" class="btn primary" data-open="'+esc(p.slug)+'" aria-label="View '+esc(p.name)+'">View product</button>';
-    h += '<button type="button" class="btn" data-openalert="'+esc(p.slug)+'" aria-label="Set a price alert for '+esc(p.name)+'">Set a price alert</button></div>';
-    h += '</div>';
-  });
-  h += '</div>';
-  h += '<p class="dim" style="margin-top:12px">'+esc(m.detail)+'</p>';
-  h += '<p style="margin-top:8px"><b>'+esc(m.addsLine)+'</b></p>';
-  h += '<p style="margin-top:12px"><button type="button" class="btn navy block" data-sidebyside="'+esc(a.slug)+','+esc(b.slug)+'" aria-label="See '+esc(a.name)+' and '+esc(b.name)+' side by side in the full comparison">See them side by side, full specs</button></p>';
-  h += '</article>';
-  return h;
-}
-function renderComparisons(){
-  var groups = buildCompGroups();
-  if (!groups.length){
-    app.innerHTML = '<div class="panel" style="text-align:center"><p><b>No comparison groups yet.</b></p><p class="dim" style="margin-top:6px">A group needs at least two products of the same kind on the watch before its matchups can be worked out.</p></div>';
-    return;
-  }
-  var selected = null;
-  groups.forEach(function(g){ if (g.key===state.compGroup) selected = g; });
-  if (!selected) selected = groups[0];
-  state.compGroup = selected.key;
-  var h = '<div class="panel"><h2>Comparisons</h2>';
-  h += '<p class="dim" style="margin-top:6px">Three ways to choose, per kind of equipment, and no other pairings of similar machines: the lowest priced two, the high end two, and the two that lead on the spec that kind is bought on. Every figure comes from the product\u2019s own record, worked out live from the catalogue in '+esc(prov.name)+'. A different kind of equipment gets its own three, chosen the same practical way.</p>';
-  h += '<div style="margin-top:14px"><label for="compGroupSel"><b>Equipment group</b></label><select id="compGroupSel" aria-label="Equipment group for comparisons" style="display:block;width:100%;margin-top:4px;padding:9px;border:1px solid var(--border);border-radius:8px;font:inherit;background:#fff;color:var(--navy)">';
-  groups.forEach(function(g){ h += '<option value="'+esc(g.key)+'"'+(g.key===selected.key ? " selected" : "")+'>'+esc(g.title)+' \u00b7 '+g.items.length+' products</option>'; });
-  h += '</select><p class="dim" style="font-size:.8rem;margin-top:4px">'+groups.length+' kinds of equipment carry comparisons, each with its own three.</p></div></div>';
-  h += '<section aria-label="Comparisons for '+esc(selected.title)+'"><h3 class="subhead">'+esc(selected.title)+'</h3>';
-  h += '<p class="dim" style="margin-top:4px">'+selected.items.length+' products in this group. These three are the only comparisons shown for this kind of equipment.</p>';
-  h += '<div class="sumgrid">';
-  selected.matchups.forEach(function(m){
-    h += '<div class="sumcard"><p class="slabel">'+esc(m.label)+'</p><p style="margin-top:6px">'+esc(m.pair[0].name)+' <b class="price">'+cad(m.pair[0].price)+'</b>, '+esc(m.pair[1].name)+' <b class="price">'+cad(m.pair[1].price)+'</b></p><p class="dim" style="font-size:.8rem;margin-top:4px">'+esc(m.figure(m.pair[0]))+' \u00b7 '+esc(m.figure(m.pair[1]))+'</p><p style="font-size:.8rem;font-weight:600;margin-top:6px">'+esc(m.addsLine)+'</p></div>';
-  });
-  h += '</div>';
-  h += '<div class="comp-grid">';
-  selected.matchups.forEach(function(m){ h += matchupCardHtml(m); });
-  h += '</div>';
-  h += '<p class="dim" style="margin-top:14px">Want every recorded spec for these machines, not just the headline figures? The side by side button on each card loads that pair into the full comparison table. Your own picks still work the other way: the Compare button on any product card builds a tray of up to four, from one kind of item at a time.</p>';
-  h += '</section>';
-  app.innerHTML = h;
-  var sel = document.getElementById("compGroupSel");
-  if (sel) sel.addEventListener("change", function(){ state.compGroup = sel.value; render(); });
-}
-
+/* The Comparisons page was removed (Nov 19, 2026): its equipment group picker, pairing cards and adds over text are gone, and the old #comparisons address lands on the Shop view (see applyHashToState). The Compare tool above is untouched by the removal. */
 /* ---- What changed strip, computed the way the working app computes it ---- */
 /* What changed materiality (Peloton page cleanup mirror, Nov 18,
    2026), the same rules the working app applies: the strip is a
@@ -2037,7 +1844,6 @@ function whatChangedHtml(){
 }
 function homeSectionsHtml(){
   var h = whatChangedHtml();
-  h += '<section class="panel" aria-label="Comparisons"><h3>Comparisons: three ways to choose</h3><p class="dim" style="margin-top:6px">Per kind of equipment, only three matchups: the lowest priced two, the high end two, and the two that lead on the spec that kind is bought on, shortest for trainers and racks, smallest footprint for cardio, widest range for adjustable weights. No other pairings of similar machines. A different kind of equipment gets its own three.</p><p style="margin-top:12px"><button type="button" class="btn primary" data-nav="comparisons" aria-label="Open the Comparisons page">Open comparisons</button></p></section>';
   h += '<section class="panel" aria-label="Price alerts"><h3>Price alerts</h3><p class="dim" style="margin-top:6px">Alerts run by email for now. Set an alert on any product and the watch emails you when a check records a drop, a move under your target tax in total, or a return to stock. No account, no password. Pick a product, pick your alert, and the signup button opens your mail app with the alert filled in. Send that email and the alert is set up the same day. The signup sits on every product page and on every product card under Alert, and on the build page for a whole Build My Gym build.</p><p style="margin-top:12px"><button type="button" class="btn primary" data-nav="drops" aria-label="See the latest drops before setting an alert">See the latest drops</button> <button type="button" class="btn" data-nav="how" aria-label="Read how alerts work">How alerts work</button></p></section>';
   return h;
 }
@@ -2624,28 +2430,53 @@ function renderDetail(){
 var COMPARE_NOT_STATED = "Not stated on the retailer page";
 function cmpNotStated(){ return '<span class="cmp-ns">'+COMPARE_NOT_STATED+'</span>'; }
 function moneyStockGroups(products){
+  /* Best figure helpers (Compare price spine, Nov 19, 2026, ported
+     from the working app): the indices of the lowest (or biggest)
+     comparable figure in a Money row, empty unless at least two
+     shown products state a comparable figure. */
+  function lowestIndices(values){
+    var stated = [];
+    values.forEach(function(v, i){ if (v!=null) stated.push({ v:v, i:i }); });
+    if (stated.length<2) return new Set();
+    var best = Math.min.apply(null, stated.map(function(x){ return x.v; }));
+    return new Set(stated.filter(function(x){ return x.v===best; }).map(function(x){ return x.i; }));
+  }
+  function biggestDropIndices(list){
+    var stated = [];
+    list.forEach(function(p, i){ if (p.regular) stated.push({ drop:p.regular-p.price, i:i }); });
+    if (stated.length<2) return new Set();
+    var best = Math.max.apply(null, stated.map(function(x){ return x.drop; }));
+    if (best<=0) return new Set();
+    return new Set(stated.filter(function(x){ return x.drop===best; }).map(function(x){ return x.i; }));
+  }
   var moneyRows = [
-    { label:"Tax in total", labelNote:prov.name+" \u00b7 "+prov.label, signature:function(p){ return String(taxIn(p.price)); }, render:function(p){ return '<span class="price cmp-taxin">'+cad(taxIn(p.price))+'</span>'; } },
-    { label:"Shelf price", signature:function(p){ return String(p.price); }, render:function(p){ return '<span class="cmp-shelf">'+cad(p.price)+'</span>'; } },
-    { label:"Regular price", signature:function(p){ return p.regular ? String(p.regular) : "not-stated"; }, missing:function(p){ return !p.regular; }, render:function(p){
+    { label:"Tax in total", labelNote:prov.name+" \u00b7 "+prov.label, signature:function(p){ return String(taxIn(p.price)); }, bestFor:function(list){ return lowestIndices(list.map(function(p){ return taxIn(p.price); })); }, render:function(p){ return '<span class="price cmp-taxin">'+cad(taxIn(p.price))+'</span>'; } },
+    { label:"Shelf price", signature:function(p){ return String(p.price); }, bestFor:function(list){ return lowestIndices(list.map(function(p){ return p.price; })); }, render:function(p){ return '<span class="cmp-shelf">'+cad(p.price)+'</span>'; } },
+    { label:"Regular price", signature:function(p){ return p.regular ? String(p.regular) : "not-stated"; }, missing:function(p){ return !p.regular; }, bestFor:function(list){ return biggestDropIndices(list); }, render:function(p){
         if (!p.regular) return cmpNotStated();
         var drop = dropBelowRegularText(p.price, p.regular);
         return '<span class="cmp-shelf">'+cad(p.regular)+'</span><span class="cmp-drop'+(drop.indexOf("No drop")===0?" dim":"")+'">'+esc(drop)+'</span>';
       } },
-    { label:"Delivery", signature:function(p){ return compareDeliveryText(p); }, missing:function(p){ return compareDeliveryText(p)==="Delivery not recorded yet"; }, render:function(p){ return '<span class="cmp-txt">'+esc(compareDeliveryText(p))+'</span>'; } },
-    { label:"All in with delivery", signature:function(p){ var hh = deliveryHighlight(p.ship || "", taxIn(p.price)); return hh.allInCents==null ? "none" : String(hh.allInCents); }, render:function(p){
-        var hh = deliveryHighlight(p.ship || "", taxIn(p.price));
-        if (hh.allInCents==null) return '<span class="cmp-txt">No all in figure on these delivery terms</span>';
-        return '<span class="cmp-txt"><span class="price cmp-taxin">'+cad(hh.allInCents)+'</span><span class="cmp-drop dim">'+(hh.kind==="pickup"?"Pickup \u00b7 one item order":"One item order")+'</span></span>';
-      } }
+    { label:"Delivery", signature:function(p){ return compareDeliveryText(p); }, missing:function(p){ return compareDeliveryText(p)==="Delivery not recorded yet"; }, render:function(p){ return '<span class="cmp-txt">'+esc(compareDeliveryText(p))+'</span>'; } }
   ];
+  /* All in with delivery (Compare price spine, Nov 19, 2026): the
+     row prints only when at least one shown product's terms make it
+     computable, and reads Not computable from the stated terms for
+     the others. */
+  if (products.some(function(p){ return deliveryHighlight(p.ship || "", taxIn(p.price)).allInCents!=null; })){
+    moneyRows.push({ label:"All in with delivery", signature:function(p){ var hh = deliveryHighlight(p.ship || "", taxIn(p.price)); return hh.allInCents==null ? "none" : String(hh.allInCents); }, render:function(p){
+        var hh = deliveryHighlight(p.ship || "", taxIn(p.price));
+        if (hh.allInCents==null) return '<span class="cmp-txt">Not computable from the stated terms</span>';
+        return '<span class="cmp-txt"><span class="price cmp-taxin">'+cad(hh.allInCents)+'</span><span class="cmp-drop dim">'+(hh.kind==="pickup"?"Pickup \u00b7 one item order":"One item order")+'</span></span>';
+      } });
+  }
   var anyMulti = products.some(function(p){ return p.checkCount>1; });
   if (!anyMulti){
     moneyRows.push({ label:"Price history", signature:function(p){ return p.checkCount+"|"+(p.lowest==null?"":p.lowest)+"|"+(p.lowestDate||p.checked); }, render:function(p){
       return p.checkCount>0 ? '<span class="cmp-txt">1 check \u00b7 '+fmtDate(p.lowestDate||p.checked)+' \u00b7 <span class="price">'+cad(p.lowest)+'</span></span>' : '<span class="cmp-txt">No checks recorded yet</span>';
     }});
   } else {
-    moneyRows.push({ label:"Lowest seen", signature:function(p){ return p.checkCount+"|"+(p.lowest==null?"":p.lowest)+"|"+(p.lowestDate||""); }, render:function(p){
+    moneyRows.push({ label:"Lowest seen", signature:function(p){ return p.checkCount+"|"+(p.lowest==null?"":p.lowest)+"|"+(p.lowestDate||""); }, bestFor:function(list){ return lowestIndices(list.map(function(p){ return p.lowest==null ? null : p.lowest; })); }, render:function(p){
       if (p.checkCount>1) return '<span class="cmp-txt"><span class="cmp-shelf">'+cad(p.lowest)+'</span>'+(p.lowestDate?' on '+fmtDate(p.lowestDate):'')+' in our checks</span>';
       if (p.checkCount===1) return '<span class="cmp-txt">Only check so far, '+fmtDate(p.lowestDate||p.checked)+'</span>';
       return '<span class="cmp-txt">No checks recorded yet</span>';
@@ -2656,31 +2487,50 @@ function moneyStockGroups(products){
       return '<span class="cmp-txt">No checks recorded yet</span>';
     }});
   }
+  /* Timing row (Compare price spine, Nov 19, 2026): computed from
+     our own recorded checks only. At its lowest seen where the
+     current shelf price equals the lowest seen, with the amount and
+     the date that price was first seen; otherwise the amount above
+     the lowest seen, with that amount and its date; a single check
+     reads as first check only, with no history invented. */
+  moneyRows.push({ label:"Timing against its own checks", signature:function(p){ return p.checkCount<=1 ? "single|"+p.checked : (p.price-(p.lowest==null?p.price:p.lowest))+"|"+(p.lowest==null?"":p.lowest)+"|"+(p.lowestDate||""); }, missing:function(p){ return p.checkCount===0; }, render:function(p){
+    if (p.checkCount<=1) return '<span class="cmp-txt">First check only, no history yet</span>';
+    var lowest = p.lowest==null ? p.price : p.lowest;
+    if (p.price<=lowest){
+      return '<span class="cmp-txt">At its lowest seen'+(p.lowestDate ? ' \u00b7 <span class="cmp-shelf">'+cad(lowest)+'</span> first seen '+fmtDate(p.lowestDate) : '')+'</span>';
+    }
+    return '<span class="cmp-txt"><span class="cmp-shelf">'+cad(p.price-lowest)+'</span> above its lowest seen (<span class="price">'+cad(lowest)+'</span>'+(p.lowestDate ? ' on '+fmtDate(p.lowestDate) : '')+')</span>';
+  }});
   var dates = products.map(function(p){ return p.checked; });
   var sharedDate = (products.length>1 && dates.every(function(d){ return d===dates[0]; })) ? dates[0] : null;
   var stockRows = [ { label:"Stock", signature:function(p){ return p.stock || "not-stated"; }, missing:function(p){ return !p.stock; }, render:function(p){ return '<span class="cmp-txt">'+esc(p.stock||"Stock not stated")+'</span>'; } } ];
   if (!sharedDate) stockRows.push({ label:"Last checked", signature:function(p){ return p.checked; }, render:function(p){ return '<span class="cmp-txt">'+fmtDate(p.checked)+'</span>'; } });
   if (products.some(function(p){ return p.checkFailed || p.isStale; })){
     stockRows.push({ label:"Check status", signature:function(p){ return (p.checkFailed ? "failed" : "ok")+"|"+(p.isStale ? "stale" : "current"); }, render:function(p){
-      var s = p.checkFailed ? "The latest check could not read the retailer\'s page." + (p.isStale ? " Last recorded price, not current." : "") : (p.isStale ? "Last recorded price, not current." : "Last checked successfully");
+      var s = p.checkFailed ? "The latest check could not read the retailer's page." + (p.isStale ? " Last recorded price, not current." : "") : (p.isStale ? "Last recorded price, not current." : "Last checked successfully");
       return '<span class="cmp-txt">'+esc(s)+'</span>';
     }});
   }
+  var anyBestMark = moneyRows.some(function(r){ return r.bestFor && r.bestFor(products).size>0; });
   return [
-    { key:"money", title:"Money", rows:moneyRows },
+    { key:"money", title:"Money", rows:moneyRows, footLine: anyBestMark ? "Marked cell is the lowest or biggest figure in that row, on the measure the row names." : null },
     { key:"stock", title:"Stock and last checked", rows:stockRows, sharedLine: sharedDate ? "Last checked "+fmtDate(sharedDate)+" for every product here" : null }
   ];
 }
 
-/* Compare table controls and body (Nov 19, 2026 compare fix, ported
-   from the working app): every comparison table carries a Differences
-   only toggle and, where more than one product is shown, Previous and
-   Next controls that step the scroll area one machine at a time with a
-   Machine N of M indicator. Differences only hides a row only when
-   every shown product states the same value for it (its signature
-   matches across the columns); a row that differs partly because one
-   record is silent stays visible and its label is marked Not stated
-   for N of M. Rows without a signature are always shown. */
+/* Compare table controls and body (Nov 19, 2026 builds, ported from
+   the working app): every comparison table carries a Differences
+   only toggle and, where more than one product is shown, Previous
+   and Next controls that step one machine at a time with a Machine
+   N of M indicator. A row counts as a difference only when at least
+   two compared products state a value for it and those stated
+   values differ; a stated value against a Not stated value is
+   missing information and shows in the full view only. A row no
+   compared product states stays hidden in both views. At phone
+   width the non current machine columns are removed from layout
+   while paging, so no text fragments bleed into the visible column
+   (see bindCompareTables). Money rows carry light best figure
+   marks, with the legend as the Money group's foot line. */
 function cmpControlsHtml(tableId, products){
   var diffOnly = !!state.cmpDiff[tableId];
   var colIndex = Math.min(state.cmpCol[tableId] || 0, Math.max(0, products.length-1));
@@ -2695,35 +2545,37 @@ function cmpControlsHtml(tableId, products){
 }
 function cmpTableHtml(products, groups, ariaLabel, removable, tableId, headerExtra){
   var diffOnly = !!state.cmpDiff[tableId];
-  var hiddenCount = 0, gapCount = 0;
+  function rowStated(r, p){
+    if (r.missing) return !r.missing(p);
+    if (r.signature) return r.signature(p)!=="not-stated";
+    return true;
+  }
   function rowDiffers(r){
     if (!r.signature) return true;
-    var sigs = products.map(function(p){ return r.signature(p); });
+    var sigs = [];
+    products.forEach(function(p){ if (rowStated(r, p)) sigs.push(r.signature(p)); });
+    if (sigs.length<2) return false;
     for (var i=1;i<sigs.length;i++) if (sigs[i]!==sigs[0]) return true;
     return false;
   }
   var visGroups = [];
   groups.forEach(function(g){
     var rows = g.rows.filter(function(r){
+      if (!products.some(function(p){ return rowStated(r, p); })) return false;
       if (!diffOnly) return true;
-      if (rowDiffers(r)){
-        if (r.missing && products.some(function(p){ return r.missing(p); }) && !products.every(function(p){ return r.missing(p); })) gapCount++;
-        return true;
-      }
-      hiddenCount++;
-      return false;
+      return rowDiffers(r);
     });
-    if (rows.length || (!diffOnly && (g.key==="money" || g.key==="stock"))) visGroups.push({ key:g.key, title:g.title, note:g.note, sharedLine:g.sharedLine, footLine:g.footLine, rows:rows });
+    if (rows.length) visGroups.push({ key:g.key, title:g.title, note:g.note, sharedLine:g.sharedLine, footLine:g.footLine, rows:rows });
   });
+  var hasSpecDiff = visGroups.some(function(g){ return g.key!=="money" && g.key!=="stock" && g.rows.length>0; });
+  var showSparseNotice = diffOnly && !hasSpecDiff && groups.some(function(g){ return g.key!=="money" && g.key!=="stock"; });
   var h = cmpControlsHtml(tableId, products);
   if (diffOnly){
-    h += '<p class="cmp-note-line">Showing only rows where the recorded values differ. '+hiddenCount+' '+(hiddenCount===1?"row is":"rows are")+' hidden because every machine here matches on it, or because no machine\'s record states it.'
-      + (gapCount ? ' '+gapCount+' of the rows shown '+(gapCount===1?"differs":"differ")+' partly because a retailer page did not state the field for one of these machines: those rows are marked under their label. Not stated means the page did not say, not that the machine lacks it.' : '')
-      + '</p>';
+    h += '<p class="cmp-note-line">Showing rows where the stated values differ. Not stated means the page did not say it.</p>';
   }
   h += '<div class="cmp-scroll" data-cmptable="'+tableId+'"><table class="cmp2" aria-label="'+esc(ariaLabel)+'"><thead><tr><th class="cmp-lab cmp-corner">Product</th>';
-  products.forEach(function(p){
-    h += '<th class="cmp-prod" data-compare-col>'+(p.photo ? '<button type="button" class="cmp-thumb" data-open="'+esc(p.slug)+'" aria-label="View details for '+esc(p.name)+'"><img src="'+esc(p.photo)+'" alt="" loading="lazy" decoding="async" /></button>' : '')
+  products.forEach(function(p, ci){
+    h += '<th class="cmp-prod" data-compare-col data-col="'+ci+'">'+(p.photo ? '<button type="button" class="cmp-thumb" data-open="'+esc(p.slug)+'" aria-label="View details for '+esc(p.name)+'"><img src="'+esc(p.photo)+'" alt="" loading="lazy" decoding="async" /></button>' : '')
       + '<button type="button" class="name-link cmp-name" data-open="'+esc(p.slug)+'">'+esc(p.name)+'</button>'
       + '<span class="cmp-ret">'+esc(p.retailer)+'</span>'
       + '<span class="price cmp-headprice">'+cad(taxIn(p.price))+'</span>'
@@ -2741,18 +2593,16 @@ function cmpTableHtml(products, groups, ariaLabel, removable, tableId, headerExt
     if (g.note) h += '<tr class="cmp-note"><td colspan="'+(products.length+1)+'"><span>'+esc(g.note)+'</span></td></tr>';
     if (g.sharedLine) h += '<tr><th class="cmp-lab">Last checked</th><td colspan="'+products.length+'" class="cmp-shared"><span>'+esc(g.sharedLine)+'</span></td></tr>';
     g.rows.forEach(function(r){
+      var bestSet = r.bestFor ? r.bestFor(products) : null;
       h += '<tr><th class="cmp-lab">'+esc(r.label)+(r.labelNote?'<span class="cmp-labnote">'+esc(r.labelNote)+'</span>':'');
-      if (diffOnly && r.missing){
-        var mc = products.filter(function(p){ return r.missing(p); }).length;
-        if (mc>0 && mc<products.length) h += '<span class="cmp-miss">Not stated for '+mc+' of '+products.length+'</span>';
-      }
       h += '</th>';
-      products.forEach(function(p){ h += '<td class="cmp-cell" data-compare-col>'+r.render(p)+'</td>'; });
+      products.forEach(function(p, ci){ h += '<td class="cmp-cell'+(bestSet && bestSet.has(ci) ? ' cmp-best' : '')+'" data-compare-col data-col="'+ci+'">'+r.render(p)+'</td>'; });
       h += '</tr>';
     });
     if (g.footLine) h += '<tr class="cmp-note"><td colspan="'+(products.length+1)+'"><span>'+esc(g.footLine)+'</span></td></tr>';
   });
   h += '</tbody></table></div>';
+  if (showSparseNotice) h += '<p class="cmp-note-line">The retailer pages state too little to compare specs here. The full view shows what each page did and did not state.</p>';
   return h;
 }
 
@@ -2813,23 +2663,26 @@ function trainerFeatureCell(p, rowDef, baseline){
   return featureCellHtml(f, baseline);
 }
 
-function trainerCompareHtml(){
-  var all = applySort(PRODUCTS.filter(function(p){ return p.pub==="trainers"; }), state.cmpSort);
-  var active = fullFiltersActive(state.tf);
+function trainerCompareHtml(trayProducts){
+  var trayMode = !!(trayProducts && trayProducts.length);
+  var allTrainers = PRODUCTS.filter(function(p){ return p.pub==="trainers"; });
+  var all = applySort(allTrainers, state.cmpSort);
+  var active = trayMode ? false : fullFiltersActive(state.tf);
   var part = active ? partitionBy(all, evaluateFullFilters, state.tf) : { matched:all, unknown:[], out:0 };
-  var matched = part.matched;
-  /* Four at a time (Nov 19, 2026 compare fix): the table shows at most
-     four machines. The default opening four are the verdict machines
-     first, cheapest tax in first inside each verdict; on any other
-     sort, the first four of that order. state.cmpPicks holds the
-     visitor's own column picks in column order once they swap a
-     machine; picks the filters prune out fall away. */
-  var verdictRank = function(v){ return v==="buy_now" ? 0 : v==="wait" ? 1 : v==="never" ? 2 : 3; };
-  var defaultPicks = state.cmpSort==="default"
-    ? matched.slice().sort(function(a, b){ var d = verdictRank(a.verdict)-verdictRank(b.verdict); return d!==0 ? d : taxIn(a.price)-taxIn(b.price); }).slice(0, 4)
-    : matched.slice(0, 4);
-  var picked = state.cmpPicks ? state.cmpPicks.map(function(s){ return matched.filter(function(p){ return p.slug===s; })[0] || null; }).filter(Boolean) : [];
-  var products = picked.length ? picked : defaultPicks;
+  var matched = trayMode ? allTrainers.slice() : part.matched;
+  var menuPool = trayMode ? defaultSort(allTrainers) : matched;
+  /* One workspace (Compare price spine, Nov 19, 2026): in tray mode
+     the table shows exactly the tray picks, in tray order. Otherwise
+     it opens on the four verdict machines (Ascend SM-900, Force USA
+     G4, Altas AL-3059, IRONAX All-In-One Trainer), until the visitor
+     swaps a column with the picker menus. */
+  var products;
+  if (trayMode) products = trayProducts.slice();
+  else {
+    var preset = ["ascend-sm-900","force-usa-g4","altas-al-3059","ironax-all-in-one-trainer"].map(function(s){ return matched.filter(function(p){ return p.slug===s; })[0] || null; }).filter(Boolean);
+    var picked = state.cmpPicks ? state.cmpPicks.map(function(s){ return matched.filter(function(p){ return p.slug===s; })[0] || null; }).filter(Boolean) : [];
+    products = picked.length ? picked : preset;
+  }
   cmpCurrentShown = products.map(function(p){ return p.slug; });
   /* The row set is the union of the shown machines' recorded rows, so
      a field only one machine's record carries still gets its row. */
@@ -2866,48 +2719,59 @@ function trainerCompareHtml(){
     { key:"quality", title:"Quality parts", rows: toRows(qualityRows, "spec", sourceBaseline(qFeats)), footLine: sectionSourceLineText(qFeats) },
     { key:"features", title:"Features", rows: toRows(featureRows, "checklist", sourceBaseline(fFeats)), footLine: sectionSourceLineText(fFeats) }
   ]).filter(function(g){ return g.rows.length || g.key==="money" || g.key==="stock"; });
-  var h = '<div class="panel" style="margin-top:16px"><h3>Compare the trainers, four at a time</h3>';
-  if (matched.length) h += '<p class="dim" style="margin-top:6px">All '+matched.length+' trainers are in the menus below, but the table shows at most four at once, so prices and specs stay readable on a phone. It opens on the strongest verdicts, cheapest first inside each verdict. Swap any column for another trainer with its menu, or add one where a slot is free.</p>';
-  h += '<p style="margin-top:10px"><button type="button" class="btn" data-cmpHow="1" aria-expanded="'+state.cmpHow+'">How to read this '+(state.cmpHow?"\u25b4":"\u25be")+'</button></p>';
-  if (state.cmpHow){
-    h += '<p class="dim" style="margin-top:10px">Every machine on the same fields, read from its own retailer page. Where a page does not state a field, the cell says Not stated on the retailer page. Not stated is not a no, and it is not a missing feature: it means that retailer\'s page did not say, so we cannot confirm it either way. The line under each machine\'s name counts how many of the compared fields its record states, so a machine with a thin record does not read as a machine with thin specs. Differences only, above the table, hides the rows where all the shown machines match; a row that differs partly because one record is silent stays shown and is marked. The row labels stay in place as you move across, the product headers stay pinned at the top while you scroll down the rows, and the Previous and Next controls above the table move one machine at a time.</p>';
-    h += '<p class="dim">Each feature is marked Included, Not included, or Not stated, which means the retailer\'s page does not say.</p>';
-    h += '<p class="dim">Warranties are ranked best to lowest: frame term first, then parts term. A machine whose warranty the retailer page does not state carries no rank.</p>';
+  var h = "";
+  if (trayMode){
+    h += '<div class="panel" style="margin-top:16px"><h3>Your compare tray, side by side</h3><p class="dim" style="margin-top:6px">These are the trainers in your compare tray, and only those, with their full recorded feature lists. Use the Remove control on a column to take a machine out of the tray.</p></div>';
+  } else {
+    h += '<div class="panel" style="margin-top:16px"><h3>Compare the trainers, four at a time</h3>';
+    if (matched.length) h += '<p class="dim" style="margin-top:6px">All '+matched.length+' trainers are in the menus below, but the table shows at most four at once, so prices and specs stay readable on a phone. It opens on the four verdict machines. Swap any column for another trainer with its menu, or add one where a slot is free.</p>';
+    h += '<div style="margin-top:14px;border-top:1px solid var(--border);padding-top:14px"><label><b>Sort</b> <select id="cmpSortSel" aria-label="Sort the comparison">'+sortOptionsHtml(state.cmpSort, true)+'</select></label></div>';
+    h += '</div>';
+    h += '<div style="margin-top:14px"><button type="button" class="btn" data-filters="tf" aria-expanded="'+state.tfOpen+'">Filters'+(active?" (on)":"")+'</button></div>';
+    if (state.tfOpen) h += '<div style="margin-top:12px">'+fullPanelHtml("cmp")+'</div>';
+    if (active) h += '<p class="fsum" role="status">'+part.matched.length+' of '+all.length+' match \u00b7 '+part.unknown.length+' cannot be confirmed \u00b7 '+part.out+' filtered out</p>';
   }
-  h += '<div style="margin-top:14px;border-top:1px solid var(--border);padding-top:14px"><label><b>Sort</b> <select id="cmpSortSel" aria-label="Sort the comparison">'+sortOptionsHtml(state.cmpSort, true)+'</select></label></div>';
-  h += '</div>';
-  h += '<div style="margin-top:14px"><button type="button" class="btn" data-filters="tf" aria-expanded="'+state.tfOpen+'">Filters'+(active?" (on)":"")+'</button></div>';
-  if (state.tfOpen) h += '<div style="margin-top:12px">'+fullPanelHtml("cmp")+'</div>';
-  if (active) h += '<p class="fsum" role="status">'+part.matched.length+' of '+all.length+' match \u00b7 '+part.unknown.length+' cannot be confirmed \u00b7 '+part.out+' filtered out</p>';
   if (products.length){
-    if (matched.length){
-      h += '<section class="cmp-pick" aria-label="Choose machines to compare"><h3>Comparing '+products.length+' of '+matched.length+' trainers</h3>';
+    if (menuPool.length){
+      h += '<section class="cmp-pick" aria-label="Choose machines to compare"><h3>Comparing '+products.length+' of '+menuPool.length+' trainers</h3>';
       h += '<p class="dim" style="margin-top:4px">Each menu swaps one column of the table. Picking a machine that is already in the table swaps the two columns.</p>';
       h += '<div class="cmp-pickgrid">';
       products.forEach(function(p, i){
-        h += '<div><label for="compare-pick-'+i+'">Machine '+(i+1)+'</label><select id="compare-pick-'+i+'" data-cmppick="'+i+'" aria-label="Machine '+(i+1)+' in the comparison">';
-        matched.forEach(function(m){ h += '<option value="'+esc(m.slug)+'"'+(m.slug===p.slug?" selected":"")+'>'+esc(m.name)+' \u00b7 '+cad(taxIn(m.price))+' tax in</option>'; });
+        h += '<div><label for="compare-pick-'+i+'">Machine '+(i+1)+'</label><select id="compare-pick-'+i+'" '+(trayMode ? 'data-traypick="'+esc(p.slug)+'"' : 'data-cmppick="'+i+'"')+' aria-label="Machine '+(i+1)+' in the comparison">';
+        menuPool.forEach(function(m){ h += '<option value="'+esc(m.slug)+'"'+(m.slug===p.slug?" selected":"")+'>'+esc(m.name)+' \u00b7 '+cad(taxIn(m.price))+' tax in</option>'; });
         h += '</select></div>';
       });
       if (products.length<4){
-        h += '<div><label for="compare-pick-add">Add a machine</label><select id="compare-pick-add" data-cmpadd="1" aria-label="Add a machine to the comparison"><option value="">Choose a trainer to add\u2026</option>';
-        matched.forEach(function(m){ if (products.indexOf(m)<0) h += '<option value="'+esc(m.slug)+'">'+esc(m.name)+' \u00b7 '+cad(taxIn(m.price))+' tax in</option>'; });
+        h += '<div><label for="compare-pick-add">Add a machine</label><select id="compare-pick-add" '+(trayMode ? 'data-trayadd="1"' : 'data-cmpadd="1"')+' aria-label="Add a machine to the comparison"><option value="">Choose a trainer to add\u2026</option>';
+        menuPool.forEach(function(m){ if (products.indexOf(m)<0) h += '<option value="'+esc(m.slug)+'">'+esc(m.name)+' \u00b7 '+cad(taxIn(m.price))+' tax in</option>'; });
         h += '</select></div>';
       }
       h += '</div></section>';
     }
-    h += '<div style="margin-top:14px">'+cmpTableHtml(products, groups, "Feature comparison of the trainers in the comparison", false, "trainer", function(p){
+    h += '<div style="margin-top:14px">'+cmpTableHtml(products, groups, "Feature comparison of the trainers in the comparison", trayMode, "trainer", function(p){
       if (!rows.length) return "";
       var stated = rows.filter(function(r){ var f = trainerCellFor(p, r.feature_key); return f && f.status!=="not_stated"; }).length;
       return '<span class="cmp-record">Record: '+stated+' of '+rows.length+' fields stated</span>';
     })+'</div>';
   }
   else h += '<div class="panel" style="margin-top:14px"><p><b>No machines match all the set filters.</b></p><p class="dim">Loosen a filter or clear them all to see the full comparison.</p></div>';
-  h += cannotConfirmHtml(part.unknown, all.length);
+  if (!trayMode) h += cannotConfirmHtml(part.unknown, all.length);
   return h;
 }
 
-function genericCompareHtml(products, removable){
+function genericCompareHtml(initialProducts, removable, pool, trayMode){
+  var menuPool = (pool && pool.length) ? pool : initialProducts;
+  var products = initialProducts;
+  /* Column selection (Compare price spine, Nov 19, 2026): one menu
+     per column, up to four columns, choosing from the pool of the
+     same category and kind. In tray mode the tray owns the selection
+     (the menus swap tray entries); otherwise the picks are local to
+     this table, starting from the products passed in. */
+  if (!trayMode && state.genPicks){
+    var resolved = state.genPicks.map(function(s){ return menuPool.filter(function(p){ return p.slug===s; })[0] || initialProducts.filter(function(p){ return p.slug===s; })[0] || null; }).filter(Boolean);
+    if (resolved.length) products = resolved;
+  }
+  genCurrentShown = products.map(function(p){ return p.slug; });
   var RANGE_KEYS = ["dumbbell_range","kettlebell_range","plate_range"];
   var specFeaturesAll = [], checklistFeaturesAll = [];
   products.forEach(function(p){
@@ -2932,15 +2796,7 @@ function genericCompareHtml(products, removable){
       }});
   }
   if (products.some(function(p){ return isLineCard(p) || plateSetLead(p); })){
-    specRows.push({ key:"from-price", label:"From price",
-      signature:function(p){ return String(p.price); },
-      render:function(p){
-        if (!isLineCard(p)) return '<span class="cmp-txt">'+cad(p.price)+' shelf</span>';
-        var entry = entryWeightLabel(p);
-        return '<span class="cmp-txt"><span class="price">'+cad(p.price)+'</span> shelf \u00b7 <span class="price">'+cad(taxIn(p.price))+'</span> tax in'+(entry ? ' \u00b7 price is for the '+esc(entry) : '')+'</span>';
-      }});
     specRows.push({ key:"line-rate", label:"Price per lb",
-      signature:function(p){ var s = plateSetLead(p); if (s) return "set:"+s.perLbCents; var r = lineRateOf(p); return r ? "rate:"+r.rate : (isLineCard(p) ? "no-rate" : "single"); },
       render:function(p){
         var setL = plateSetLead(p);
         if (setL) return '<span class="cmp-txt">About <span class="price">'+cad(setL.perLbCents)+'</span> per lb (calculated) on the '+setL.totalWeightLb+' lb set</span>';
@@ -3018,9 +2874,23 @@ function genericCompareHtml(products, removable){
   ]).filter(function(g){ return g.rows.length || g.key==="money" || g.key==="stock"; });
   var genericRowKeys = [];
   products.forEach(function(p){ (p.features||[]).forEach(function(f){ if (genericRowKeys.indexOf(f.feature_key)<0) genericRowKeys.push(f.feature_key); }); });
-  var h = '<div style="margin-bottom:12px"><button type="button" class="btn" data-genHow="1" aria-expanded="'+state.genHow+'">How to read this '+(state.genHow?"\u25b4":"\u25be")+'</button>';
-  if (state.genHow) h += '<p class="dim" style="margin-top:8px">One column per product, side by side: money first (the tax in total for your province, shelf price, regular price with any drop below it, delivery as recorded, and the price history), then stock, then the recorded specs and features. Weight ranges print in pounds, and lengths in feet and inches. Where a retailer\'s page was silent, the cell says Not stated rather than guessing: Not stated is a gap in that product\'s record, not a missing feature, and the line under each name counts how many of the compared fields its record states. Differences only, above the table, hides the rows where all the compared products match. The row labels stay in place as you move across, and the Previous and Next controls above the table move one product at a time.</p>';
-  h += '</div>';
+  var h = "";
+  if (menuPool.length>1){
+    h += '<section class="cmp-pick" aria-label="Choose products to compare"><h3>Comparing '+products.length+' of '+menuPool.length+' products</h3>';
+    h += '<p class="dim" style="margin-top:4px">Each menu swaps one column of the table. Picking a product that is already in the table swaps the two columns.</p>';
+    h += '<div class="cmp-pickgrid">';
+    products.forEach(function(p, i){
+      h += '<div><label for="generic-pick-'+i+'">Product '+(i+1)+'</label><select id="generic-pick-'+i+'" '+(trayMode ? 'data-traypick="'+esc(p.slug)+'"' : 'data-genpick="'+i+'"')+' aria-label="Product '+(i+1)+' in the comparison">';
+      menuPool.forEach(function(m){ h += '<option value="'+esc(m.slug)+'"'+(m.slug===p.slug?" selected":"")+'>'+esc(m.name)+' \u00b7 '+cad(taxIn(m.price))+' tax in</option>'; });
+      h += '</select></div>';
+    });
+    if (products.length<4){
+      h += '<div><label for="generic-pick-add">Add a product</label><select id="generic-pick-add" '+(trayMode ? 'data-trayadd="1"' : 'data-genadd="1"')+' aria-label="Add a product to the comparison"><option value="">Choose a product to add\u2026</option>';
+      menuPool.forEach(function(m){ if (products.indexOf(m)<0) h += '<option value="'+esc(m.slug)+'">'+esc(m.name)+' \u00b7 '+cad(taxIn(m.price))+' tax in</option>'; });
+      h += '</select></div>';
+    }
+    h += '</div></section>';
+  }
   h += cmpTableHtml(products, groups, "Comparison of " + products.map(function(p){ return p.name; }).join(", "), removable, "generic", function(p){
     var out = "";
     if (isLineCard(p)){
@@ -3042,33 +2912,85 @@ function genericCompareHtml(products, removable){
    trainerCompareHtml on every render; the picker menus swap against
    this list. */
 var cmpCurrentShown = [];
+var genCurrentShown = [];
 /* Compare table wiring (Nov 19, 2026 compare fix): after the Compare
    view renders, restore each table's stepped position, keep the
    Machine N of M indicator and the Previous and Next disabled states
    in step with sideways scrolling, and wire the step buttons, the
    Differences only toggles, and the trainer picker menus. */
 function bindCompareTables(){
-  document.querySelectorAll("[data-cmptable]").forEach(function(sc){
-    var tid = sc.getAttribute("data-cmptable");
+  function isNarrow(){
+    try { return !!(window.matchMedia && window.matchMedia("(max-width: 639px)").matches); } catch(e){ return false; }
+  }
+  /* Phone paging (sparse record correction, Nov 19, 2026, ported
+     from the working app): below 640px the table pages one machine
+     at a time, and the non current machine columns are removed from
+     layout entirely (display none) rather than scrolled or shifted
+     off screen, so no text fragment from another column can bleed
+     into the visible column. Wider screens keep every column in
+     layout and page by scrolling, as before. */
+  function applyPaging(sc, tid){
     var heads = sc.querySelectorAll("thead [data-compare-col]");
     var count = heads.length;
     if (!count) return;
-    var cell = heads[0];
-    if (cell.offsetWidth) sc.scrollLeft = Math.min(state.cmpCol[tid] || 0, Math.max(0, count-1))*cell.offsetWidth;
+    var cur = Math.max(0, Math.min(count-1, state.cmpCol[tid] || 0));
+    state.cmpCol[tid] = cur;
+    if (isNarrow() && count>1){
+      sc.querySelectorAll("[data-compare-col]").forEach(function(c){
+        c.style.display = parseInt(c.getAttribute("data-col"), 10)===cur ? "" : "none";
+      });
+      sc.scrollLeft = 0;
+    } else {
+      sc.querySelectorAll("[data-compare-col]").forEach(function(c){ c.style.display = ""; });
+      var cell = heads[0];
+      if (cell && cell.offsetWidth) sc.scrollLeft = cur*cell.offsetWidth;
+    }
+    var pos = document.querySelector('[data-cmppos="'+tid+'"]');
+    if (pos) pos.textContent = "Machine "+(cur+1)+" of "+count;
+    document.querySelectorAll("[data-cmpstep]").forEach(function(b){
+      var parts = b.getAttribute("data-cmpstep").split(":");
+      if (parts[0]!==tid) return;
+      b.disabled = parseInt(parts[1], 10)<0 ? cur<=0 : cur>=count-1;
+    });
+  }
+  document.querySelectorAll("[data-cmptable]").forEach(function(sc){
+    var tid = sc.getAttribute("data-cmptable");
+    applyPaging(sc, tid);
     sc.addEventListener("scroll", function(){
+      if (isNarrow()) return;
       var c = sc.querySelector("thead [data-compare-col]");
       if (!c || !c.offsetWidth) return;
-      var i = Math.max(0, Math.min(count-1, Math.round(sc.scrollLeft/c.offsetWidth)));
+      var heads = sc.querySelectorAll("thead [data-compare-col]");
+      var i = Math.max(0, Math.min(heads.length-1, Math.round(sc.scrollLeft/c.offsetWidth)));
       state.cmpCol[tid] = i;
       var pos = document.querySelector('[data-cmppos="'+tid+'"]');
-      if (pos) pos.textContent = "Machine "+(i+1)+" of "+count;
+      if (pos) pos.textContent = "Machine "+(i+1)+" of "+heads.length;
       document.querySelectorAll("[data-cmpstep]").forEach(function(b){
         var parts = b.getAttribute("data-cmpstep").split(":");
         if (parts[0]!==tid) return;
-        b.disabled = parseInt(parts[1], 10)<0 ? i<=0 : i>=count-1;
+        b.disabled = parseInt(parts[1], 10)<0 ? i<=0 : i>=heads.length-1;
       });
     });
   });
+  if (!window.__cmpResizeBound){
+    window.__cmpResizeBound = true;
+    window.addEventListener("resize", function(){
+      document.querySelectorAll("[data-cmptable]").forEach(function(sc){
+        var tid = sc.getAttribute("data-cmptable");
+        var heads = sc.querySelectorAll("thead [data-compare-col]");
+        if (!heads.length) return;
+        var cur = Math.max(0, Math.min(heads.length-1, state.cmpCol[tid] || 0));
+        if (isNarrow() && heads.length>1){
+          sc.querySelectorAll("[data-compare-col]").forEach(function(c){
+            c.style.display = parseInt(c.getAttribute("data-col"), 10)===cur ? "" : "none";
+          });
+          sc.scrollLeft = 0;
+        } else {
+          sc.querySelectorAll("[data-compare-col]").forEach(function(c){ c.style.display = ""; });
+        }
+      });
+    });
+  }
   document.querySelectorAll("[data-cmpstep]").forEach(function(b){
     b.addEventListener("click", function(){
       var parts = b.getAttribute("data-cmpstep").split(":");
@@ -3076,18 +2998,9 @@ function bindCompareTables(){
       var sc = document.querySelector('[data-cmptable="'+tid+'"]');
       if (!sc) return;
       var heads = sc.querySelectorAll("thead [data-compare-col]");
-      var cell = heads[0];
-      if (!cell || !cell.offsetWidth) return;
-      var next = Math.max(0, Math.min(heads.length-1, (state.cmpCol[tid] || 0)+dir));
-      state.cmpCol[tid] = next;
-      sc.scrollTo({ left: next*cell.offsetWidth, behavior:"smooth" });
-      var pos = document.querySelector('[data-cmppos="'+tid+'"]');
-      if (pos) pos.textContent = "Machine "+(next+1)+" of "+heads.length;
-      document.querySelectorAll("[data-cmpstep]").forEach(function(b2){
-        var p2 = b2.getAttribute("data-cmpstep").split(":");
-        if (p2[0]!==tid) return;
-        b2.disabled = parseInt(p2[1], 10)<0 ? next<=0 : next>=heads.length-1;
-      });
+      if (!heads.length) return;
+      state.cmpCol[tid] = Math.max(0, Math.min(heads.length-1, (state.cmpCol[tid] || 0)+dir));
+      applyPaging(sc, tid);
     });
   });
   document.querySelectorAll("[data-diffonly]").forEach(function(cb){
@@ -3117,34 +3030,142 @@ function bindCompareTables(){
     if (current.indexOf(slug)<0){ current.push(slug); state.cmpPicks = current; }
     render();
   });
+  /* Tray column swaps (Compare price spine, Nov 19, 2026): in tray
+     mode a menu pick updates the tray itself, so the table and the
+     tray never disagree. */
+  document.querySelectorAll("[data-traypick]").forEach(function(selEl){
+    selEl.addEventListener("change", function(){
+      var oldSlug = selEl.getAttribute("data-traypick");
+      var slug = selEl.value;
+      var at = state.tray.indexOf(oldSlug);
+      if (!slug || slug===oldSlug || at<0){ render(); return; }
+      var existing = state.tray.indexOf(slug);
+      var next = state.tray.slice();
+      if (existing>=0) next[existing] = oldSlug;
+      next[at] = slug;
+      state.tray = next;
+      state.trayNote = "";
+      render();
+    });
+  });
+  var trayAddSel = document.querySelector("[data-trayadd]");
+  if (trayAddSel) trayAddSel.addEventListener("change", function(){
+    var slug = trayAddSel.value;
+    if (!slug) return;
+    if (state.tray.indexOf(slug)<0){
+      var droppedName = "";
+      if (state.tray.length>=4){ var dp = bySlug(state.tray.shift()); droppedName = dp ? dp.name : ""; }
+      state.tray.push(slug);
+      state.trayNote = droppedName ? "Compare holds four items at a time, so " + droppedName + " was removed." : "";
+    }
+    render();
+  });
+  document.querySelectorAll("[data-genpick]").forEach(function(selEl){
+    selEl.addEventListener("change", function(){
+      var i = parseInt(selEl.getAttribute("data-genpick"), 10);
+      var slug = selEl.value;
+      var current = genCurrentShown.slice();
+      var existing = current.indexOf(slug);
+      var next = current.slice();
+      if (existing>=0 && existing!==i) next[existing] = current[i];
+      next[i] = slug;
+      state.genPicks = next;
+      render();
+    });
+  });
+  var genAddSel = document.querySelector("[data-genadd]");
+  if (genAddSel) genAddSel.addEventListener("change", function(){
+    var slug = genAddSel.value;
+    if (!slug) return;
+    var current = genCurrentShown.slice();
+    if (current.indexOf(slug)<0){ current.push(slug); state.genPicks = current; }
+    render();
+  });
+}
+/* One compare workspace per category (Compare price spine, Nov 19,
+   2026, ported from the working app): the tray table and the
+   trainers table are one table with one menu per column, up to four
+   columns. Tray picks open in tray order. The trainers workspace
+   opens on the four verdict machines; any other category opens on
+   tray picks or on an example drawn from that one category, chosen
+   for the richest records in it. The example banner is generated
+   from the same selection the table renders, naming its category,
+   its basis and the actual products shown. Exactly one How to read
+   this control sits on the page, in the header panel. */
+var TRAINER_PRESET_SLUGS = ["ascend-sm-900","force-usa-g4","altas-al-3059","ironax-all-in-one-trainer"];
+function statedFieldCount(p){ return (p.features||[]).filter(function(f){ return f.status!=="not_stated"; }).length; }
+function richestExampleFor(cat){
+  var inCat = PRODUCTS.filter(function(p){ return p.pub===cat; });
+  var byGroup = {}, order = [];
+  inCat.forEach(function(p){
+    var g = compGroupKeyOf(p);
+    if (!byGroup[g]){ byGroup[g] = []; order.push(g); }
+    byGroup[g].push(p);
+  });
+  var best = [], bestScore = -1;
+  order.forEach(function(g){
+    var ranked = byGroup[g].slice().sort(function(a, b){
+      var d = statedFieldCount(b)-statedFieldCount(a);
+      return d!==0 ? d : taxIn(a.price)-taxIn(b.price);
+    }).slice(0, 4);
+    var score = ranked.reduce(function(s, p){ return s+statedFieldCount(p); }, 0);
+    if (score>bestScore){ bestScore = score; best = ranked; }
+  });
+  return best;
+}
+function comparePoolFor(p){
+  var g = compGroupKeyOf(p);
+  return defaultSort(PRODUCTS.filter(function(q){ return compGroupKeyOf(q)===g; }));
 }
 function renderCompare(){
-  var h = '<div class="panel"><h2>Compare</h2>';
-  h += '<p style="margin-top:10px"><button type="button" class="btn" data-cmpPageHow="1" aria-expanded="'+state.cmpPageHow+'">How to read this '+(state.cmpPageHow?"\u25b4":"\u25be")+'</button></p>';
-  if (state.cmpPageHow) h += '<p class="dim" style="margin-top:10px">Up to four products from the same category, side by side: money (tax in total in your province, shelf price, regular price and any drop, delivery, and the price history), stock, and the recorded specs and features.</p>';
-  h += '</div>';
   var trayProducts = state.tray.map(bySlug).filter(Boolean);
-  if (!trayProducts.length){
-    var trainersByTax = PRODUCTS.filter(function(p){ return p.pub==="trainers"; }).slice().sort(function(a,b){ return taxIn(a.price)-taxIn(b.price); }).slice(0,2);
-    h += '<section aria-label="Example comparison"><div class="panel" style="margin-top:16px"><span class="wbadge best">Example comparison</span><p class="dim" style="margin-top:8px">You have not chosen anything to compare yet, so here are the two all in one trainers with the lowest tax in totals in '+esc(prov.name)+'. This example clears the moment you add your own products with the Compare button on any product card.</p></div>';
-    h += '<div style="margin-top:12px">'+genericCompareHtml(trainersByTax, false)+'</div></section>';
-  }
-  if (trayProducts.length){
-    h += '<section aria-label="Your compare tray" style="margin-top:16px"><h3 class="subhead">Your compare tray</h3><p class="dim" style="margin-top:6px">Only the products you picked, side by side.</p>'+genericCompareHtml(trayProducts, true)+'</section>';
-    if (state.fullCmp){
-      h += trainerCompareHtml();
+  var trayActive = trayProducts.length>0;
+  var activeCat = trayActive ? trayProducts[0].pub : (state.cmpExampleCat || "trainers");
+  var h = '<div class="panel"><h2>Compare</h2>';
+  h += '<p style="margin-top:10px"><button type="button" class="btn" data-cmpPageHow="1" aria-expanded="'+(!!state.cmpPageHow)+'">How to read this '+(state.cmpPageHow?"\u25b4":"\u25be")+'</button></p>';
+  if (state.cmpPageHow) h += '<p class="dim" style="margin-top:10px">Up to four products from the same category, side by side in one table: money first (tax in total in your province, shelf price, regular price and any drop, delivery, lowest seen, price history, and timing against each product\u2019s own recorded checks), then stock, then the recorded specs and features, sized to what each record states. A marked cell in the Money section is the lowest or biggest figure in that row, on the measure the row names. Where a page does not state a field, the cell says Not stated on the retailer page: that is a gap in the record, not a missing feature. Differences only shows only rows where at least two products state a value and those stated values differ; a field one product states and another does not is missing information, not a difference, and stays in the full view only.</p>';
+  h += '</div>';
+  var exampleSelection = [];
+  if (!trayActive){
+    exampleSelection = activeCat==="trainers"
+      ? TRAINER_PRESET_SLUGS.map(function(s){ return bySlug(s); }).filter(Boolean)
+      : richestExampleFor(activeCat);
+    var basis = activeCat==="trainers" ? "verdict machines" : "products with the most recorded fields stated";
+    h += '<section aria-label="Example comparison"><div class="panel" style="margin-top:16px"><span class="wbadge best">Example comparison</span>';
+    if (exampleSelection.length){
+      h += '<p class="dim" style="margin-top:8px">You have not chosen anything to compare yet, so here are the '+exampleSelection.length+' '+basis+' in '+esc(catName(activeCat))+': '+exampleSelection.map(function(p){ return esc(p.name); }).join(", ")+'. This example clears the moment you add your own products with the Compare button on any product card.</p>';
     } else {
-      var trainerCount = PRODUCTS.filter(function(p){ return p.pub==="trainers"; }).length;
-      h += '<div class="panel" style="margin-top:16px"><h3>Compare every trainer instead</h3><p class="dim" style="margin-top:6px">The full feature comparison puts all '+trainerCount+' tracked trainers on the same fields, with filters for height, footprint, price and resistance.</p><p style="margin-top:10px"><button type="button" class="btn navy" data-fullcmp="1">Compare all '+trainerCount+' trainers</button></p></div>';
+      h += '<p class="dim" style="margin-top:8px">You have not chosen anything to compare yet. Add your own products with the Compare button on any product card.</p>';
     }
+    h += '<div class="cmp-cats" role="group" aria-label="Example category">';
+    CATS.forEach(function(c){
+      if (!PRODUCTS.some(function(p){ return p.pub===c.id; })) return;
+      h += '<button type="button" class="cmp-cat'+(activeCat===c.id?" on":"")+'" data-cmpcat="'+c.id+'" aria-pressed="'+(activeCat===c.id)+'" aria-label="Show an example comparison for '+esc(c.name)+'">'+esc(c.name)+'</button>';
+    });
+    h += '</div></div></section>';
+  }
+  if (activeCat==="trainers"){
+    h += trainerCompareHtml(trayActive ? trayProducts : null);
   } else {
-    state.fullCmp = false;
-    h += trainerCompareHtml();
+    var shown = trayActive ? trayProducts : exampleSelection;
+    var pool = shown.length ? comparePoolFor(shown[0]) : [];
+    h += '<div style="margin-top:16px">'+genericCompareHtml(shown, trayActive, pool, trayActive)+'</div>';
+  }
+  if (trayActive){
+    h += '<p class="dim" style="margin-top:12px">This table is your compare tray: the products you picked, in the order you picked them, side by side with their recorded fields. The tray bar stays on every page while the tray holds products, and its Compare now button brings you back here.</p>';
   }
   app.innerHTML = h;
   bindCompareTables();
   var sel = document.getElementById("cmpSortSel");
   if (sel) sel.addEventListener("change", function(e){ state.cmpSort = e.target.value; render(); });
+  document.querySelectorAll("[data-cmpcat]").forEach(function(b){
+    b.addEventListener("click", function(){
+      state.cmpExampleCat = b.getAttribute("data-cmpcat");
+      state.genPicks = null;
+      state.cmpPicks = null;
+      render();
+    });
+  });
   document.querySelectorAll(".tf-in").forEach(function(inp){
     inp.addEventListener("change", function(){ state.tf[inp.getAttribute("data-tf")] = inp.value; render(); });
   });
@@ -3294,7 +3315,6 @@ function render(){
   if (state.view==="shop") renderShop();
   else if (state.view==="detail") renderDetail();
   else if (state.view==="compare") renderCompare();
-  else if (state.view==="comparisons") renderComparisons();
   else if (state.view==="manage") renderManage();
   else if (state.view==="drops") renderDrops();
   else if (state.view==="guides") renderGuides();
@@ -3324,7 +3344,6 @@ function productSlugFromHash(){
 }
 function desiredProductHash(){
   if (state.view==="detail" && state.detail && bySlug(state.detail)) return "#product=" + encodeURIComponent(state.detail);
-  if (state.view==="comparisons") return "#comparisons";
   if (state.view==="manage" && state.manage) return "#alerts=" + encodeURIComponent(state.manage.token);
   return "";
 }
@@ -3346,8 +3365,9 @@ function applyHashToState(){
     return enterManage(link);
   }
   if (/(?:^#|&)comparisons(?:&|$)/i.test(window.location.hash || "")){
-    if (state.view==="comparisons") return true;
-    state.view = "comparisons"; state.detail = null;
+    /* The Comparisons page was removed (Nov 19, 2026): the old
+       #comparisons address lands on the Shop view. */
+    state.view = "shop"; state.detail = null; state.manage = null;
     render();
     window.scrollTo(0,0);
     return true;
