@@ -604,6 +604,13 @@ function joinNames(names){ if (names.length<=1) return names.join(""); if (names
 function cad(c){ if (c==null) return "Not stated"; return "$" + (c/100).toLocaleString("en-CA",{minimumFractionDigits:2, maximumFractionDigits:2}); }
 function fmtDate(iso){ if (!iso) return ""; var m=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]; var p=iso.split("-"); return m[parseInt(p[1],10)-1] + " " + parseInt(p[2],10) + ", " + p[0]; }
 function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+/* Retailer display label (Nov 22, 2026): the chain storefront tracked as
+   Fitness Depot renders as Fitness Depot (chain site) wherever its name
+   is printed as a label, so it is not confused with Fitness Depot Plus
+   (Quebec) or the single Fitness Depot Toronto store. Display only: the
+   stored retailer name, slugs, URLs, outbound links and the fixed
+   delivery lines are unchanged, and every lookup keeps the stored name. */
+function retailerDisplay(r){ return r==="Fitness Depot" ? "Fitness Depot (chain site)" : r; }
 /* Awin tracked outbound links (Nov 16, 2026): Altas Strength CA approved this site onto its Awin affiliate programme (advertiser 131660, publisher 3155883, link status Online). Every outbound link rendered for an Altas Strength product wraps the recorded altasstrength.ca URL in the Awin deep link form below. The wrap is applied here, at render time only: the stored retailer URL stays the plain altasstrength.ca URL, so price checks keep reading the retailer page directly. No other retailer links change. */
 function outboundUrl(p){ if (p.retailer==="Altas Strength") return "https://www.awin1.com/cread.php?awinmid=131660&awinaffid=3155883&ued="+encodeURIComponent(p.url); return p.url; }
 function catName(id){ for (var i=0;i<CATS.length;i++) if (CATS[i].id===id) return CATS[i].name; return id; }
@@ -1412,7 +1419,7 @@ var trayEl = document.getElementById("tray");
 
 function photoImg(p, cls){
   if (!p.photo) return "";
-  return '<img class="'+(cls||"")+'" src="'+esc(p.photo)+'" alt="'+esc(p.name)+' at '+esc(p.retailer)+'" loading="lazy" decoding="async" />';
+  return '<img class="'+(cls||"")+'" src="'+esc(p.photo)+'" alt="'+esc(p.name)+' at '+esc(retailerDisplay(p.retailer))+'" loading="lazy" decoding="async" />';
 }
 /* Photo audit, Nov 14, 2026: photos whose visible size marking is not the size the tracked price is for, verified against each photo and its recorded source page. The caption names what the photo shows so the photo never stands in for the priced size. */
 var PHOTO_SHOWS = {
@@ -1453,7 +1460,7 @@ function photoFrame(p, openable){
   return '<div class="photo">'+photoImg(p)+'</div>';
 }
 function retailerChip(p){
-  return '<button type="button" class="rchip" data-retailer="'+esc(p.retailer)+'" aria-label="View everything tracked from '+esc(p.retailer)+'">'+esc(p.retailer)+'</button>';
+  return '<button type="button" class="rchip" data-retailer="'+esc(p.retailer)+'" aria-label="View everything tracked from '+esc(retailerDisplay(p.retailer))+'">'+esc(retailerDisplay(p.retailer))+'</button>';
 }
 function healthHtml(p){
   var h = "";
@@ -1712,7 +1719,7 @@ function cardHtml(p){
   h += '<div><dt>Last checked</dt><dd>'+fmtDate(p.checked)+(p.lastPulsed?' <span class="pconfirmed">Price confirmed '+fmtDate(p.lastPulsed)+'</span>':'')+'</dd></div>';
   h += '</dl>';
   if (v) h += '<p style="margin:12px 0 0"><span class="vchip '+v.cls+'">'+v.label+'</span></p>';
-  h += '<p style="margin:12px 0 0"><a class="btn primary block" href="'+esc(outboundUrl(p))+'" target="_blank" rel="noreferrer">View at '+esc(p.retailer)+' \u2197</a></p>';
+  h += '<p style="margin:12px 0 0"><a class="btn primary block" href="'+esc(outboundUrl(p))+'" target="_blank" rel="noreferrer">View at '+esc(retailerDisplay(p.retailer))+' \u2197</a></p>';
   h += '<div class="actions">';
   h += '<button type="button" class="btn navy" data-open="'+esc(p.slug)+'">Details</button>';
   h += '<button type="button" class="btn" data-tray="'+esc(p.slug)+'" aria-pressed="'+inTray+'">'+(inTray?"In compare tray \u2713":"Compare")+'</button>';
@@ -2095,7 +2102,7 @@ function renderHome(){
   h += '<h2 class="headline">Canada\'s <span class="only">ONLY</span> home gym price watcher.</h2>';
   h += '<p class="lede" style="font-size:1.02rem">'+PRODUCTS.length.toLocaleString("en-CA")+' products at Canadian retailers. Every price is checked daily and dated, every price is the retailer\'s listed price before tax, and every drop is measured against the product\'s own price history.</p>';
   h += '<div class="rblock"><p class="rhead">'+countText(RETAILERS.length)+' Canadian retailers checked.</p><div class="rchips">';
-  RETAILERS.forEach(function(r){ var dn = r==="Fitness Depot Plus" ? "Fitness Depot Plus (Quebec)" : r; h += '<button type="button" class="rchip lg" data-retailer="'+esc(r)+'" aria-label="View everything tracked from '+esc(r)+'">'+esc(dn)+'</button>'; });
+  RETAILERS.forEach(function(r){ var dn = r==="Fitness Depot" ? "Fitness Depot (chain site)" : (r==="Fitness Depot Plus" ? "Fitness Depot Plus (Quebec)" : r); h += '<button type="button" class="rchip lg" data-retailer="'+esc(r)+'" aria-label="View everything tracked from '+esc(r)+'">'+esc(dn)+'</button>'; });
   h += '</div></div>';
   h += homeSectionsHtml();
   h += '<section aria-label="Categories"><div class="cats">';
@@ -2153,7 +2160,7 @@ function dropRowHtml(d){
   h += '<div class="drop-photo">'+photoFrame(p, true)+'</div>';
   h += '<div class="drop-main">';
   h += '<h3 class="drop-name"><button type="button" class="name-link" data-open="'+esc(p.slug)+'">'+esc(p.name)+'</button></h3>';
-  h += '<p class="drop-ret">'+esc(p.retailer)+'</p>';
+  h += '<p class="drop-ret">'+esc(retailerDisplay(p.retailer))+'</p>';
   h += '<p class="drop-line"><span class="drop-lab">Was</span> <b>'+cad(d.prevCents)+'</b> <span class="dim">recorded '+fmtDate(d.prevDate)+'</span></p>';
   h += '<p class="drop-line"><span class="drop-lab">Now</span> <b class="price">'+cad(d.nowCents)+'</b> <span class="dim">shelf price, recorded '+fmtDate(d.nowDate)+'</span></p>';
   h += '<p class="drop-amt">Down '+cad(d.dropCents)+' \u00b7 '+d.pct.toFixed(2)+'%</p>';
@@ -2195,17 +2202,17 @@ function renderRetailer(){
     return out;
   }
   var h = shopSearchHtml();
-  h += '<div class="panel"><h2>'+esc(ret)+'</h2>';
-  h += '<p class="dim">'+all.length+' product'+(all.length===1?"":"s")+' tracked from '+esc(ret)+' on this watch'+(cats.length ? ', across '+cats.map(function(c){ return c.name; }).join(", ") : '')+'. Prices in CAD, before tax.</p>';
+  h += '<div class="panel"><h2>'+esc(retailerDisplay(ret))+'</h2>';
+  h += '<p class="dim">'+all.length+' product'+(all.length===1?"":"s")+' tracked from '+esc(retailerDisplay(ret))+' on this watch'+(cats.length ? ', across '+cats.map(function(c){ return c.name; }).join(", ") : '')+'. Prices in CAD, before tax.</p>';
   h += '<p class="dim">'+(state.retailerSort==="default" ? "Shown lowest price first." : "Sorted with the control below; lowest price first is the default.")+'</p>';
   h += '<p><button type="button" class="btn" data-clearretailer="1">Show all retailers</button></p></div>';
   if (cats.length>=2){
-    h += '<nav class="retchips" aria-label="Categories at '+esc(ret)+'">';
-    h += '<button type="button" class="retchip'+(activeCat==null?" current":"")+'" data-retailercat="" aria-pressed="'+(activeCat==null)+'" aria-label="All products at '+esc(ret)+', '+all.length+' products">All \u00b7 '+all.length+'</button>';
+    h += '<nav class="retchips" aria-label="Categories at '+esc(retailerDisplay(ret))+'">';
+    h += '<button type="button" class="retchip'+(activeCat==null?" current":"")+'" data-retailercat="" aria-pressed="'+(activeCat==null)+'" aria-label="All products at '+esc(retailerDisplay(ret))+', '+all.length+' products">All \u00b7 '+all.length+'</button>';
     cats.forEach(function(c){
       var n = all.filter(function(p){ return p.pub===c.id; }).length;
       var cur = activeCat===c.id;
-      h += '<button type="button" class="retchip'+(cur?" current":"")+'" data-retailercat="'+c.id+'" aria-pressed="'+cur+'" aria-label="'+esc(c.name)+' at '+esc(ret)+', '+n+' products">'+esc(c.name)+' \u00b7 '+n+'</button>';
+      h += '<button type="button" class="retchip'+(cur?" current":"")+'" data-retailercat="'+c.id+'" aria-pressed="'+cur+'" aria-label="'+esc(c.name)+' at '+esc(retailerDisplay(ret))+', '+n+' products">'+esc(c.name)+' \u00b7 '+n+'</button>';
     });
     h += '</nav>';
   }
@@ -2214,12 +2221,12 @@ function renderRetailer(){
   if (searching){
     var q = state.query.trim();
     var scoped = catItems.filter(function(p){ return productMatchesSearch(p, state.query); });
-    h += '<p style="margin:12px 0"><button type="button" class="btn backbtn" data-retailerback="1" aria-label="Back to all products at '+esc(ret)+'">\u2190 Back to '+esc(ret)+'</button> <button type="button" class="btn" data-searchall="1" aria-label="Search the whole catalogue">Search the whole catalogue</button></p>';
-    h += '<h2 class="viewtitle">'+scoped.length+' result'+(scoped.length===1?"":"s")+' at '+esc(ret)+' for \u201c'+esc(q)+'\u201d</h2>';
+    h += '<p style="margin:12px 0"><button type="button" class="btn backbtn" data-retailerback="1" aria-label="Back to all products at '+esc(retailerDisplay(ret))+'">\u2190 Back to '+esc(retailerDisplay(ret))+'</button> <button type="button" class="btn" data-searchall="1" aria-label="Search the whole catalogue">Search the whole catalogue</button></p>';
+    h += '<h2 class="viewtitle">'+scoped.length+' result'+(scoped.length===1?"":"s")+' at '+esc(retailerDisplay(ret))+' for \u201c'+esc(q)+'\u201d</h2>';
     if (scoped.length) h += listHtml(scoped);
-    else h += '<div class="panel"><p><b>Nothing tracked from '+esc(ret)+' matches \u201c'+esc(q)+'\u201d.</b></p><p class="dim">Clear the search to see everything tracked from '+esc(ret)+', or search the whole catalogue with the button above.</p></div>';
+    else h += '<div class="panel"><p><b>Nothing tracked from '+esc(retailerDisplay(ret))+' matches \u201c'+esc(q)+'\u201d.</b></p><p class="dim">Clear the search to see everything tracked from '+esc(retailerDisplay(ret))+', or search the whole catalogue with the button above.</p></div>';
   } else {
-    if (activeCat) h += '<p class="fsum" role="status" style="margin-top:10px">Showing '+catItems.length+' product'+(catItems.length===1?"":"s")+' in '+esc(catName(activeCat))+' at '+esc(ret)+'. <button type="button" class="name-link" data-retailercat="" aria-label="Show all products at '+esc(ret)+'">Show all at '+esc(ret)+'</button></p>';
+    if (activeCat) h += '<p class="fsum" role="status" style="margin-top:10px">Showing '+catItems.length+' product'+(catItems.length===1?"":"s")+' in '+esc(catName(activeCat))+' at '+esc(retailerDisplay(ret))+'. <button type="button" class="name-link" data-retailercat="" aria-label="Show all products at '+esc(retailerDisplay(ret))+'">Show all at '+esc(retailerDisplay(ret))+'</button></p>';
     h += listHtml(catItems);
   }
   app.innerHTML = h;
@@ -2535,7 +2542,7 @@ function calcRowsHtml(area){
     var p = r.p;
     h += '<li class="calc-row">';
     if (p.photo) h += '<button type="button" class="calc-thumb calc-thumb-link" data-open="'+esc(p.slug)+'" aria-label="View details for '+esc(p.name)+'"><img src="'+esc(p.photo)+'" alt="" loading="lazy" decoding="async" /></button>';
-    h += '<div class="calc-main"><div class="calc-head"><span><b><button type="button" class="name-link" data-open="'+esc(p.slug)+'">'+esc(p.name)+'</button></b> <span class="dim">\u00b7 '+esc(p.retailer)+(p.thickLabel?' \u00b7 '+esc(imperializeSpecText(p.thickLabel)):'')+'</span></span><span class="calc-total">'+cad(r.shelfTotal)+' shelf</span></div>';
+    h += '<div class="calc-main"><div class="calc-head"><span><b><button type="button" class="name-link" data-open="'+esc(p.slug)+'">'+esc(p.name)+'</button></b> <span class="dim">\u00b7 '+esc(retailerDisplay(p.retailer))+(p.thickLabel?' \u00b7 '+esc(imperializeSpecText(p.thickLabel)):'')+'</span></span><span class="calc-total">'+cad(r.shelfTotal)+' shelf</span></div>';
     h += '<p style="margin:2px 0 0" class="dim">'+esc(mixText(p, r.units))+' ('+r.units+' units) needed \u00b7 <span class="price">'+cad(r.shelfTotal)+'</span> shelf \u00b7 '+r.leftover.toFixed(2)+' sq ft coverage left over \u00b7 <span class="price">'+cad(r.eff)+'</span> per sq ft for this room (calculated) \u00b7 Checked '+fmtDate(p.checked)+'</p>';
     h += '<p style="margin:2px 0 0" class="dim">Shipping: '+esc(retailerDeliveryLine(p.retailer) || cardDeliveryLine(p.ship||""))+'</p>';
     h += '</div></li>';
@@ -2552,7 +2559,7 @@ function flooringCalcHtml(){
   h += '<p>Totals count product only, because no seller here states a flat delivery figure; where freight or a weight minimum applies, it is printed beside the option.</p>';
   h += '<ul class="calc-list" id="calcRows">'+calcRowsHtml(parseFloat(state.roomSqft))+'</ul>';
   fl.filter(function(p){ return !p.coverage; }).forEach(function(p){
-    h += '<p class="calc-note">Cannot calculate: '+esc(p.name)+' ('+esc(p.retailer)+(p.thickLabel?', '+esc(imperializeSpecText(p.thickLabel)):'')+') \u2014 coverage not stated on the retailer\'s page, so the room cost cannot be worked out.</p>';
+    h += '<p class="calc-note">Cannot calculate: '+esc(p.name)+' ('+esc(retailerDisplay(p.retailer))+(p.thickLabel?', '+esc(imperializeSpecText(p.thickLabel)):'')+') \u2014 coverage not stated on the retailer\'s page, so the room cost cannot be worked out.</p>';
   });
   h += '</section>';
   return h;
@@ -2594,8 +2601,8 @@ function renderDetail(){
   var unitLine = p.pub==="flooring" ? flooringUnitLine(p) : null;
   var pricedLabel = pricedVariantLabel(p);
   var h = '<button type="button" class="backlink" data-backpill="1">\u2190 '+backLbl+'</button>';
-  h += '<div class="detail"><div class="photocell"><div class="photo">'+(p.photo ? '<a class="detail-photo-link" href="'+esc(outboundUrl(p))+'" target="_blank" rel="noreferrer" aria-label="View '+esc(p.name)+' at '+esc(p.retailer)+'">'+photoImg(p)+'</a>' : '<span class="nophoto-label">No photo on file</span>')+'</div>'+photoCaptionHtml(p)+'</div><div>';
-  h += '<p class="retailer">'+esc(p.retailer)+' \u00b7 Canada \u00b7 '+esc(catName(p.pub))+'</p>';
+  h += '<div class="detail"><div class="photocell"><div class="photo">'+(p.photo ? '<a class="detail-photo-link" href="'+esc(outboundUrl(p))+'" target="_blank" rel="noreferrer" aria-label="View '+esc(p.name)+' at '+esc(retailerDisplay(p.retailer))+'">'+photoImg(p)+'</a>' : '<span class="nophoto-label">No photo on file</span>')+'</div>'+photoCaptionHtml(p)+'</div><div>';
+  h += '<p class="retailer">'+esc(retailerDisplay(p.retailer))+' \u00b7 Canada \u00b7 '+esc(catName(p.pub))+'</p>';
   h += '<h2 class="viewtitle">'+esc(p.name)+'</h2>';
   h += healthHtml(p);
   if (isLineCard(p)) h += lineLeadHtml(p);
@@ -2613,7 +2620,7 @@ function renderDetail(){
   if (p.regular && p.regular>p.price) h += '<p class="regline">'+cad(p.regular-p.price)+' below its regular price of '+cad(p.regular)+'</p>';
   if (vline) h += '<p class="entryline">'+esc(vline)+'</p>';
   if (v) h += '<p style="margin:10px 0"><span class="vchip '+v.cls+'">'+v.label+'</span></p>';
-  h += '<p style="margin:14px 0 0"><a class="btn primary block" href="'+esc(outboundUrl(p))+'" target="_blank" rel="noreferrer">View at '+esc(p.retailer)+' \u2197</a></p>';
+  h += '<p style="margin:14px 0 0"><a class="btn primary block" href="'+esc(outboundUrl(p))+'" target="_blank" rel="noreferrer">View at '+esc(retailerDisplay(p.retailer))+' \u2197</a></p>';
   h += '<p class="taxnote" style="margin-top:8px">Outbound links may earn the site a commission in future once retailer programmes are approved. That never changes the price a buyer pays, and commission never changes a verdict. Until programmes are approved, retailer buttons are plain links and earn nothing.</p>';
   h += '<table class="data"><tbody>';
   if (p.checkCount>1) h += '<tr><th>Lowest seen</th><td><span class="price">'+cad(p.lowest)+'</span> shelf, on '+fmtDate(p.lowestDate)+'</td></tr>';
@@ -2806,7 +2813,7 @@ function cmpTableHtml(products, groups, ariaLabel, removable, tableId, headerExt
   products.forEach(function(p, ci){
     h += '<th class="cmp-prod" data-compare-col data-col="'+ci+'">'+(p.photo ? '<button type="button" class="cmp-thumb" data-open="'+esc(p.slug)+'" aria-label="View details for '+esc(p.name)+'"><img src="'+esc(p.photo)+'" alt="" loading="lazy" decoding="async" /></button>' : '')
       + '<button type="button" class="name-link cmp-name" data-open="'+esc(p.slug)+'">'+esc(p.name)+'</button>'
-      + '<span class="cmp-ret">'+esc(p.retailer)+'</span>'
+      + '<span class="cmp-ret">'+esc(retailerDisplay(p.retailer))+'</span>'
       + '<span class="price cmp-headprice">'+cad(p.price)+'</span>'
       + '<span class="cmp-headlab">Shelf price</span>'
       + (p.isStale ? '<span class="cmp-stale">Last recorded price, not current</span>' : '')
@@ -3523,7 +3530,7 @@ function renderProdbar(){
     + '<span class="pb-tax">Shelf price</span>'
     + (p.pub==="flooring" && flooringUnitLine(p) ? '<span class="pb-unit">'+esc(flooringUnitLine(p))+'</span>' : '')
     + '<button type="button" class="btn" data-tray="'+esc(p.slug)+'" aria-pressed="'+inTray+'">'+(inTray?"In compare tray \u2713":"Compare")+'</button>'
-    + '<a class="btn primary" href="'+esc(outboundUrl(p))+'" target="_blank" rel="noreferrer">View at '+esc(p.retailer)+' \u2197</a>';
+    + '<a class="btn primary" href="'+esc(outboundUrl(p))+'" target="_blank" rel="noreferrer">View at '+esc(retailerDisplay(p.retailer))+' \u2197</a>';
 }
 
 function backTarget(){
