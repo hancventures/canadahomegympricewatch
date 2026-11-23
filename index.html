@@ -295,6 +295,7 @@
 .catpills{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.55rem}
 .catpills-home{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.375rem}
 .catpill{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:999px;padding:.5rem .75rem;font:inherit;font-size:.75rem;font-weight:700;text-align:center;white-space:normal;width:100%;margin:0;cursor:pointer}
+.catpill.current{background:var(--red);border-color:var(--red);color:#fff}
 .catpills .catpill{margin:0}
 .rblock{margin-top:1rem}
 .rhead{font-size:.875rem;font-weight:700;color:var(--text);text-align:center;margin:0 0 .5rem}
@@ -305,8 +306,8 @@
 /* Category tools */
 .cattools{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-top:.7rem}
 .subchips{display:flex;flex-wrap:wrap;gap:.45rem;margin:.7rem 0 .2rem}
-.subchip{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:999px;padding:.45rem .9rem;font:inherit;font-weight:700;font-size:.88rem;cursor:pointer}
-.subchip:hover{background:#123a63}
+.subchip{background:#fff;color:var(--navy);border:1px solid var(--navy);border-radius:999px;padding:.3rem .65rem;font:inherit;font-weight:700;font-size:.8rem;cursor:pointer}
+.subchip:hover{background:var(--surface-alt)}
 .retchips{display:flex;flex-wrap:wrap;gap:.45rem;margin:.8rem 0 .2rem}
 .retchip{background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:999px;padding:.45rem .9rem;font:inherit;font-weight:700;font-size:.8rem;cursor:pointer;white-space:nowrap}
 .retchip.current{background:var(--navy);color:#fff;border-color:var(--navy)}
@@ -524,14 +525,14 @@ var PRODUCTS = [{"slug":"ironax-all-in-one-trainer","name":"IRONAX All-In-One Tr
    shows its failed load state and every count shows its pending mark. */
 if (!Array.isArray(PRODUCTS)) { PRODUCTS = []; }
 var CATS = [
-  {id:"trainers",name:"Trainers",blurb:"All in one trainers and Smith machines, with the full feature lists and compare view."},
+  {id:"trainers",name:"Trainers",blurb:"All in one trainers, functional trainers, cable towers, multi station gyms, Smith machines, and single station machines, with the full feature lists and compare view."},
   {id:"leg_machines",name:"Leg machines",blurb:"Leg press and hack squat machines, leg extension and leg curl stations, calf machines, belt squat and pendulum machines, and reverse hyper and GHD machines."},
-  {id:"racks",name:"Racks and stands",blurb:"Racks, stands, and rigs for free weight barbell lifting."},
+  {id:"racks",name:"Racks and stands",blurb:"Power racks, half racks, squat stands, folding racks, and rigs for free weight barbell lifting."},
   {id:"staples",name:"Strength staples",blurb:"Benches, barbells and weight plates."},
-  {id:"weights",name:"Dumbbells and kettlebells",blurb:"Dumbbells and kettlebells, adjustable and fixed."},
-  {id:"cardio",name:"Cardio",blurb:"Treadmills, bikes, rowers and ellipticals."},
+  {id:"weights",name:"Dumbbells and kettlebells",blurb:"Adjustable and fixed, plus sets."},
+  {id:"cardio",name:"Cardio",blurb:"Treadmills, rowers, exercise bikes, spin bikes, ellipticals, air bikes, ski ergs, stair climbers, and steppers."},
   {id:"flooring",name:"Flooring",blurb:"Mats, tiles and rolls, with the room cost calculator."},
-  {id:"attachments",name:"Attachments and accessories",blurb:"Rack, trainer, bench and cable attachments, collars and small kit, storage for plates, dumbbells, kettlebells, bars and accessories, and conditioning gear: sleds, plyo boxes, medicine balls, slam balls, sandbags, battle ropes and weight vests."}
+  {id:"attachments",name:"Attachments and accessories",blurb:"Rack, trainer, bench and cable attachments, collars and small kit, storage for plates, dumbbells, kettlebells, bars and accessories, and conditioning gear: sleds, plyo boxes, medicine balls, slam balls, sandbags, battle ropes, resistance bands and weight vests."}
 ];
 var CAT_PHOTO = {trainers:"ironax-all-in-one-trainer",leg_machines:"bells-of-steel-leg-press-hack-squat",racks:"ascend-power-cage-3-0",staples:"bells-of-steel-commercial-fid-bench-3-0",weights:"nuobell-550",cardio:"horizon-7-0-at",flooring:"tf-gorilla-tile-8mm",attachments:"northern-fitness-orion-push-sled"};
 var CARDIO_TYPES = ["Treadmills","Rowers","Exercise bikes","Spin Bikes","Ellipticals","Air bikes","Ski ergs","Stair climbers","Steppers","Vertical climbers","Medical Cardio Equipment","Riders"];
@@ -2204,7 +2205,6 @@ function renderRetailer(){
   var h = shopSearchHtml();
   h += '<div class="panel"><h2>'+esc(retailerDisplay(ret))+'</h2>';
   h += '<p class="dim">'+all.length+' product'+(all.length===1?"":"s")+' tracked from '+esc(retailerDisplay(ret))+' on this watch'+(cats.length ? ', across '+cats.map(function(c){ return c.name; }).join(", ") : '')+'. Prices in CAD, before tax.</p>';
-  h += '<p class="dim">'+(state.retailerSort==="default" ? "Shown lowest price first." : "Sorted with the control below; lowest price first is the default.")+'</p>';
   h += '<p><button type="button" class="btn" data-clearretailer="1">Show all retailers</button></p></div>';
   if (cats.length>=2){
     h += '<nav class="retchips" aria-label="Categories at '+esc(retailerDisplay(ret))+'">';
@@ -2409,23 +2409,24 @@ function renderCategory(){
   var cat = state.cat;
   var items = PRODUCTS.filter(function(p){ return p.pub===cat; });
   var isTrainers = cat==="trainers";
+  var showFit = (cat==="trainers" || cat==="racks" || cat==="leg_machines" || cat==="cardio");
   var f = isTrainers ? state.tf : state.light;
   var active = isTrainers ? fullFiltersActive(f) : lightFiltersActive(f);
   var part = active ? partitionBy(items, isTrainers ? evaluateFullFilters : evaluateLightFilters, f) : { matched:items, unknown:[], out:0 };
-  part = applyFitPartition(part);
-  var fitOn = fitRulesActive(state.fit);
+  if (showFit) part = applyFitPartition(part);
+  var fitOn = showFit && fitRulesActive(state.fit);
   var shown = applySort(part.matched, state.sort);
   var h = shopSearchHtml();
   h += catPillsHtml(false);
   h += '<div class="panel" style="margin-top:14px"><h2>'+esc(catName(cat))+'</h2>';
-  h += '<p class="dim">'+esc(catBlurb(cat))+' '+items.length+' product'+(items.length===1?"":"s")+' on the watch, prices in CAD, before tax.</p>';
-  h += '<p class="dim">Shown lowest price first.</p></div>';
+  h += '<p class="dim">'+esc(catBlurb(cat))+'</p>';
+  h += '<p class="dim">'+items.length+' product'+(items.length===1?"":"s")+' tracked. Listed prices in CAD, before tax.</p></div>';
   h += subcatChipsHtml(items, cat);
   h += '<div class="cattools"><button type="button" class="btn" data-filters="1" aria-expanded="'+state.filtersOpen+'">Filters'+(active?" (on)":"")+'</button>'
-     + '<button type="button" class="btn" data-fit="1" aria-expanded="'+state.fitOpen+'" aria-label="My fit rules for this category">My fit'+(fitOn?" (on)":"")+'</button>'
-     + '<label>Sort <select id="sortSel" aria-label="Sort products">'+sortOptionsHtml(state.sort, isTrainers)+'</select></label></div>';
+     + (showFit ? '<button type="button" class="btn" data-fit="1" aria-expanded="'+state.fitOpen+'" aria-label="My fit rules for this category">My fit'+(fitOn?" (on)":"")+'</button>' : '')
+     + '<label>Sort: <select id="sortSel" aria-label="Sort products">'+sortOptionsHtml(state.sort, isTrainers)+'</select></label></div>';
   if (state.filtersOpen) h += isTrainers ? fullPanelHtml("cat") : lightPanelHtml(cat);
-  if (state.fitOpen) h += myFitPanelHtml("cat", fitMovedCount(items, isTrainers ? "full" : "light", f));
+  if (showFit && state.fitOpen) h += myFitPanelHtml("cat", fitMovedCount(items, isTrainers ? "full" : "light", f));
   if (active || fitOn) h += '<p class="fsum" role="status">'+part.matched.length+' of '+items.length+' match \u00b7 '+part.unknown.length+' cannot be confirmed \u00b7 '+part.out+' filtered out</p>';
   if (!shown.length && !part.unknown.length) h += '<div class="panel"><p><b>No products match all the set filters.</b></p><p class="dim">Loosen a filter or clear them all to see the full category.</p></div>';
   else if (cat==="flooring") h += gridHtml(shown);
