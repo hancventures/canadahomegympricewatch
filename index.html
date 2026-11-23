@@ -2204,7 +2204,8 @@ function renderRetailer(){
   }
   var h = shopSearchHtml();
   h += '<div class="panel"><h2>'+esc(retailerDisplay(ret))+'</h2>';
-  h += '<p class="dim">'+all.length+' product'+(all.length===1?"":"s")+' tracked from '+esc(retailerDisplay(ret))+' on this watch'+(cats.length ? ', across '+cats.map(function(c){ return c.name; }).join(", ") : '')+'. Prices in CAD, before tax.</p>';
+  if (cats.length) h += '<p class="dim">Across '+cats.map(function(c){ return esc(c.name); }).join(", ")+'.</p>';
+  h += '<p class="dim">'+all.length+' product'+(all.length===1?"":"s")+' tracked at '+esc(retailerDisplay(ret))+'. Listed prices in CAD, before tax.</p>';
   h += '<p><button type="button" class="btn" data-clearretailer="1">Show all retailers</button></p></div>';
   if (cats.length>=2){
     h += '<nav class="retchips" aria-label="Categories at '+esc(retailerDisplay(ret))+'">';
