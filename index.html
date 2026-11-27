@@ -1843,7 +1843,7 @@ function alertFormHtml(p){
   alertFormSeq++;
   var u = "af"+alertFormSeq+"-"+p.slug;
   var h = '<form class="alert-form" data-alertform="'+esc(p.slug)+'" novalidate>';
-  h += '<p class="dim">Alerts run by email for now. Pick what to watch for below, and the button opens your mail app with the alert filled in for this product. Send that email from the address you want alerts sent to, and the alert is set up the same day.</p>';
+  h += '<p class="dim">Pick what to watch for below, and the button opens your mail app with the alert filled in for this product. Send that email from the address you want alerts sent to, and the alert is set up the same day.</p>';
   h += '<div class="checkrow"><input type="radio" id="'+u+'-drop" name="alerttype" value="drop" checked /><label for="'+u+'-drop">Alert me on any price drop</label></div>';
   h += '<div class="checkrow"><input type="radio" id="'+u+'-change" name="alerttype" value="change" /><label for="'+u+'-change">Alert me on any price change, rises included</label></div>';
   h += '<div class="checkrow"><input type="radio" id="'+u+'-targetpick" name="alerttype" value="target" /><label for="'+u+'-targetpick">Alert me at a target price</label></div>';
@@ -2719,7 +2719,7 @@ function renderDetail(){
   else if (pricedLabel) h += '<p class="unitline">Price is for the '+esc(pricedLabel)+'.</p>';
   if (setLead) h += '<p class="unitline">About <span class="price">'+cad(setLead.perLbCents)+'</span> per lb (calculated)</p>';
   h += deliveryHighlightHtml(p);
-  h += '<div class="alert-callout"><p><b>Watching this price?</b></p><p class="dim" style="margin-top:4px">Alerts run by email for now. The signup below opens your mail app with the alert filled in, and sending that email sets the alert up the same day. No account, no password.'+(isOut(p)?' This product is recorded out of stock, so a back in stock alert is also available for it.':'')+'</p><p style="margin-top:8px"><button type="button" class="btn primary" data-alertscroll="1" aria-label="Go to the price alert signup for '+esc(p.name)+'">Set a price alert</button>'+(isOut(p)?' <button type="button" class="btn primary" data-alertstock="1" aria-label="Email me when back in stock for '+esc(p.name)+'">Email me when back in stock</button>':'')+'</p></div>';
+  h += '<div class="alert-callout"><p><b>Watching this price?</b></p><p class="dim" style="margin-top:4px">Alerts run by email for now. No account, no password.</p><p style="margin-top:8px"><button type="button" class="btn primary" data-alertscroll="1" aria-label="Go to the price alert signup for '+esc(p.name)+'">Set a price alert</button>'+(isOut(p)?' <button type="button" class="btn primary" data-alertstock="1" aria-label="Email me when back in stock for '+esc(p.name)+'">Email me when back in stock</button>':'')+'</p></div>';
   if (!pricedLabel && !isLineCard(p) && entry && pricedVariantExclusion(p)==="weight_plate") h += '<p class="entryline">Price is for the '+esc(entry)+'.</p>';
   var basisLineD = plateBasisLine(p);
   if (basisLineD) h += '<p class="entryline">'+basisLineD+'</p>';
@@ -2763,7 +2763,7 @@ function renderDetail(){
   h += '</tbody></table>';
   /* Black Friday week line (TEMPORARY, Nov 23, 2026; comes off Dec 2, 2026): directly above the Get a price alert signup card, the same line as the How this works page's alerts surface. */
   h += blackFridayAlertLineHtml("margin:22px 0 -12px");
-  h += '<section id="product-alert-signup" class="panel" style="margin-top:22px" aria-label="Price alert signup"><h3>Get a price alert</h3><p class="dim" style="margin-top:4px">For this product only. Alerts run by email for now, with no account and no password.</p>' + alertFormHtml(p) + '</section>';
+  h += '<section id="product-alert-signup" class="panel" style="margin-top:22px" aria-label="Price alert signup"><h3>Get a price alert</h3>' + alertFormHtml(p) + '</section>';
   app.innerHTML = h;
   if (state.alertFocus){ state.alertFocus = false; setTimeout(function(){ var el = document.getElementById("product-alert-signup"); if (el) el.scrollIntoView({block:"start"}); }, 120); }
   var ri = document.getElementById("roomIn");
